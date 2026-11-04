@@ -1,0 +1,1 @@
+(()=>{if(document.querySelector('link[href="ssoma-priority-card.css"]'))return;const l=document.createElement('link');l.rel='stylesheet';l.href='ssoma-priority-card.css';document.head.appendChild(l)})();
