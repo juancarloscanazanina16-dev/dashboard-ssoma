@@ -25,7 +25,7 @@ function page(c){ctx=c;system=c.initialSystem||'TODOS';query='';statusFilter='TO
 <div id="md-preview" class="md-preview muted">Ejemplo: SGSST-ATS-001_Analisis_de_trabajo_seguro_V01.pdf</div><p class="muted">Los documentos cargados quedan PENDIENTES hasta su revisión y aprobación. No se publican automáticamente como vigentes.</p></div>
 <div class="card md-panel"><div class="md-panel-title"><div><h3>Biblioteca y Lista Maestra</h3><p class="muted">Búsqueda por código, nombre, tipo, sistema o versión</p></div><button id="md-refresh" class="btn light small">↻ Actualizar</button></div>
 <div class="md-toolbar"><input id="md-search" placeholder="Buscar: SGSST-ATS-001, inspección, V02..." aria-label="Buscar documentos"><select id="md-system"><option value="TODOS">Todos los sistemas</option><option value="SGSST">SGSST</option><option value="SGA">SGA</option></select><select id="md-type"><option value="TODOS">Todas las carpetas</option></select><select id="md-status-filter" aria-label="Filtrar por estado"><option value="TODOS">Todos los estados</option><option value="VIGENTE">Vigentes</option><option value="PENDIENTE">En revisión</option><option value="OBSOLETO">Obsoletos</option></select></div>
-<div class="md-export-actions"><span class="muted">Exportar Lista Maestra filtrada:</span><button type="button" class="btn light small" data-md-export="excel">Excel</button><button type="button" class="btn light small" data-md-export="word">Word</button><button type="button" class="btn light small" data-md-export="pdf">PDF</button><button type="button" class="btn light small" data-md-export="print">Imprimir / Excel a imprimir</button></div><div id="md-folders" class="md-folders"></div><div class="tablewrap"><table class="md-table"><thead><tr><th>Sistema / Carpeta</th><th>Código</th><th>Documento</th><th>Versión</th><th>Estado</th><th>Carga</th><th>Formato</th><th>Archivo</th><th>Acciones</th></tr></thead><tbody id="md-rows"><tr><td colspan="9">Cargando documentos...</td></tr></tbody></table></div><p class="muted md-note">Cada versión se conserva como registro independiente. El historial no se sobrescribe.</p></div></section>`;}
+<div class="md-export-actions"><span class="muted">Exportar Lista Maestra filtrada:</span><button type="button" class="btn light small" data-md-export="excel">Excel</button><button type="button" class="btn light small" data-md-export="word">Word</button><button type="button" class="btn light small" data-md-export="pdf">PDF</button><button type="button" class="btn light small" data-md-export="print">Imprimir / Excel a imprimir</button></div><div id="md-folders" class="md-folders"></div><div class="tablewrap"><table class="md-table"><thead><tr><th>Sistema / Carpeta</th><th>Código</th><th>Documento</th><th>Versión</th><th>Estado</th><th>Carga</th><th>Formato</th><th>Acciones del archivo</th><th>Gestión</th></tr></thead><tbody id="md-rows"><tr><td colspan="9">Cargando documentos...</td></tr></tbody></table></div><p class="muted md-note">Cada versión se conserva como registro independiente. El historial no se sobrescribe.</p></div></section>`;}
 function folders(){
  const e=document.getElementById('md-folders'),t=document.getElementById('md-type');if(!e||!t)return;
  const systems=system==='TODOS'?['SGSST','SGA']:[system];
@@ -40,7 +40,7 @@ function draw(){
  folders();
  document.querySelectorAll('[data-md-tab]').forEach(b=>{b.classList.toggle('active',b.dataset.mdTab===system);b.setAttribute('aria-selected',String(b.dataset.mdTab===system));});const type=n('md-type').value;
  const rows=filteredDocs();
- n('md-rows').innerHTML=rows.length?rows.map(d=>`<tr><td><span class="md-system ${d.system_code==='SGA'?'env':''}">${esc(d.system_code)}</span><br><small>${esc(TYPES[d.system_code]?.[d.document_type]||d.document_type)}</small></td><td><b>${esc(d.document_code)}</b></td><td>${esc(d.document_name)}</td><td>V${String(d.version_number).padStart(2,'0')}</td><td><select class="md-status-select md-status-${d.status==='VIGENTE'?'green':d.status==='OBSOLETO'?'red':'yellow'}" data-md-status="${esc(d.id)}" aria-label="Estado de ${esc(d.document_code)}"><option value="PENDIENTE" ${d.status==='PENDIENTE'?'selected':''}>En revisión</option><option value="VIGENTE" ${d.status==='VIGENTE'?'selected':''}>Válido / Vigente</option><option value="OBSOLETO" ${d.status==='OBSOLETO'?'selected':''}>Obsoleto</option></select></td><td>${new Date(d.uploaded_at).toLocaleDateString('es-PE')}</td><td><span class="md-ext">${esc(extension(d.original_filename).toUpperCase())}</span></td><td><button type="button" class="btn light small" data-md-open="${esc(d.id)}">${extension(d.original_filename)==='pdf'?'Ver PDF':'Descargar'}</button></td><td><button type="button" class="btn red small" data-md-delete="${esc(d.id)}" aria-label="Eliminar ${esc(d.document_code)} versión ${d.version_number}">Eliminar</button></td></tr>`).join(''):'<tr><td colspan="9" class="muted">No se encontraron documentos.</td></tr>';
+ n('md-rows').innerHTML=rows.length?rows.map(d=>`<tr><td><span class="md-system ${d.system_code==='SGA'?'env':''}">${esc(d.system_code)}</span><br><small>${esc(TYPES[d.system_code]?.[d.document_type]||d.document_type)}</small></td><td><b>${esc(d.document_code)}</b></td><td>${esc(d.document_name)}</td><td>V${String(d.version_number).padStart(2,'0')}</td><td><select class="md-status-select md-status-${d.status==='VIGENTE'?'green':d.status==='OBSOLETO'?'red':'yellow'}" data-md-status="${esc(d.id)}" aria-label="Estado de ${esc(d.document_code)}"><option value="PENDIENTE" ${d.status==='PENDIENTE'?'selected':''}>En revisión</option><option value="VIGENTE" ${d.status==='VIGENTE'?'selected':''}>Válido / Vigente</option><option value="OBSOLETO" ${d.status==='OBSOLETO'?'selected':''}>Obsoleto</option></select></td><td>${new Date(d.uploaded_at).toLocaleDateString('es-PE')}</td><td><span class="md-ext">${esc(extension(d.original_filename).toUpperCase())}</span></td><td><div class="md-file-actions"><button type="button" class="btn light small" data-md-open="${esc(d.id)}">Ver</button><button type="button" class="btn light small" data-md-download="${esc(d.id)}">↓ Descargar</button><button type="button" class="btn light small" data-md-print="${esc(d.id)}">▤ Imprimir</button></div></td><td><button type="button" class="btn red small" data-md-delete="${esc(d.id)}" aria-label="Eliminar ${esc(d.document_code)} versión ${d.version_number}">Eliminar</button></td></tr>`).join(''):'<tr><td colspan="9" class="muted">No se encontraron documentos.</td></tr>';
 }
 function filteredDocs(){
  const type=document.getElementById('md-type')?.value||'TODOS';
@@ -148,18 +148,33 @@ async function exportMaster(kind){
   printReport(rows);msg('Selecciona "Guardar como PDF" en la ventana de impresión.');return;
  }
 }
-async function openFile(id){
- const d=docs.find(x=>x.id===id);if(!d)return;
- const r=await ctx.db.storage.from(BUCKET).createSignedUrl(d.storage_path,90,{download:extension(d.original_filename)==='pdf'?undefined:d.original_filename});
- if(r.error)return msg('No se pudo abrir el documento: '+r.error.message,true);
- window.open(r.data.signedUrl,'_blank','noopener,noreferrer');
+async function openFile(id,mode='view'){
+ const d=docs.find(x=>x.id===id);if(!d||!ctx)return;
+ const ext=extension(d.original_filename);
+ if(mode==='print'&&ext!=='pdf'){
+  msg('Para imprimir Word o Excel, descarga el archivo y utiliza Imprimir en Word o Excel para conservar su formato.');
+  return;
+ }
+ const tab=mode==='download'?null:window.open('','_blank');
+ if(tab){tab.document.title='Preparando documento';tab.document.body.textContent='Preparando archivo seguro...';}
+ try{
+  const r=await ctx.db.storage.from(BUCKET).createSignedUrl(d.storage_path,120,mode==='download'?{download:d.original_filename}:{});
+  if(r.error)throw r.error;
+  if(mode==='download'){
+   const a=document.createElement('a');a.href=r.data.signedUrl;a.download=d.original_filename;document.body.appendChild(a);a.click();a.remove();
+   msg('Descarga solicitada: '+d.original_filename);return;
+  }
+  if(!tab){msg('Habilita las ventanas emergentes para abrir el archivo.',true);return;}
+  tab.location.replace(r.data.signedUrl);
+  if(mode==='print')msg('PDF abierto. Usa el icono Imprimir del visor o Ctrl + P.');
+ }catch(e){tab?.close();msg('No se pudo acceder al archivo: '+e.message,true);}
 }
 document.addEventListener('click',e=>{
  if(!root())return;
  const b=e.target.closest('button');if(!b)return;
  if(b.dataset.mdStatusFilter){statusFilter=b.dataset.mdStatusFilter;draw();}if(b.dataset.mdTab){system=b.dataset.mdTab;document.getElementById('md-system').value=system;document.getElementById('md-type').value='TODOS';draw();}if(b.id==='md-upload')upload();
  if(b.id==='md-refresh')refresh();
- if(b.dataset.mdExport)exportMaster(b.dataset.mdExport);if(b.dataset.mdOpen)openFile(b.dataset.mdOpen);if(b.dataset.mdDelete)deleteDocument(b.dataset.mdDelete);
+ if(b.dataset.mdExport)exportMaster(b.dataset.mdExport);if(b.dataset.mdOpen)openFile(b.dataset.mdOpen);if(b.dataset.mdDownload)openFile(b.dataset.mdDownload,'download');if(b.dataset.mdPrint)openFile(b.dataset.mdPrint,'print');if(b.dataset.mdDelete)deleteDocument(b.dataset.mdDelete);
  if(b.dataset.mdFolder){const [s]=b.dataset.mdFolder.split(':');system=s;document.getElementById('md-system').value=s;folders();document.getElementById('md-type').value=b.dataset.mdFolder;draw();}
 });
 document.addEventListener('change',e=>{if(!root())return;if(e.target.id==='md-file')preview();if(e.target.id==='md-system'){system=e.target.value;draw();}if(e.target.id==='md-type')draw();if(e.target.id==='md-status-filter'){statusFilter=e.target.value;draw();}if(e.target.dataset.mdStatus)setStatus(e.target.dataset.mdStatus,e.target.value);});
