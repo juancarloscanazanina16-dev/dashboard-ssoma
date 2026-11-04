@@ -37,7 +37,23 @@ window.attachWorkerDocumentFolders=function(modal,p,ctx){
    }
    const files=[...individual,...company];
    container.querySelector('[data-file-count]').textContent=individual.length+' individual(es) · '+company.length+' empresa';
-   list.innerHTML='<div style="margin:8px 0;font-size:12px;color:#54657b">Documentos individuales y pólizas de la subcontratista. La existencia de una póliza empresarial no confirma que el trabajador figure como asegurado.</div>'+(files.map((r,i)=>'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0;padding:9px;border:1px solid #dbe5ef;border-radius:10px"><span style="flex:1;min-width:150px"><b>'+H(r.original_name)+'</b><br><small>'+H(r.source)+' · '+H(new Date(r.uploaded_at).toLocaleDateString('es-PE'))+'</small></span><button type="button" class="btn light small" data-view-index="'+i+'">PDF original</button>'+(kind.startsWith('SCTR_')?'<button type="button" class="btn green small" data-highlight-index="'+i+'">🖍 Descargar PDF resaltado</button>':'')+'</div>').join('')||'<p class="muted">Aún no existen PDF en la carpeta individual ni en la carpeta SCTR de la subcontratista. Adjunte un PDF o cargue una póliza empresarial para habilitar las descargas.</p>');
+   list.innerHTML='<div style="margin:8px 0;font-size:12px;color:#54657b">Documentos individuales y pólizas de la subcontratista. La existencia de una póliza empresarial no confirma que el trabajador figure como asegurado.</div>'+(files.map((r,i)=>'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0;padding:9px;border:1px solid #dbe5ef;border-radius:10px"><span style="flex:1;min-width:150px"><b>'+H(r.original_name)+'</b><br><small>'+H(r.source)+' · '+H(new Date(r.uploaded_at).toLocaleDateString('es-PE'))+'</small></span><button type="button" class="btn light small" data-view-index="'+i+'">PDF original</button>'+(kind.startsWith('SCTR_')?'<button type="button" class="btn green small" data-highlight-index="'+i+'">🖍 Descargar PDF resaltado</button>':'')+(r.bucket===B?'<button type="button" class="btn light small" data-delete-index="'+i+'" style="color:#b42318;border:1px solid #f4b4ae" title="Eliminar únicamente este PDF individual">🗑 Eliminar</button>':'')+'</div>').join('')||'<p class="muted">Aún no existen PDF en la carpeta individual ni en la carpeta SCTR de la subcontratista. Adjunte un PDF o cargue una póliza empresarial para habilitar las descargas.</p>');
+   list.querySelectorAll('[data-delete-index]').forEach(b=>b.onclick=async()=>{
+    const r=files[Number(b.dataset.deleteIndex)];
+    if(!r||r.bucket!==B)return;
+    if(!window.confirm('¿Eliminar definitivamente este PDF individual?\\n\\n'+r.original_name+'\\n\\nNo se eliminarán otros archivos, pólizas empresariales ni las fechas de vigencia registradas. Esta acción no se puede deshacer.'))return;
+    b.disabled=true;
+    try{
+     const removed=await db.storage.from(B).remove([r.storage_path]);
+     if(removed.error)throw removed.error;
+     const deleted=await db.from('sst_worker_files').delete().eq('id',r.id).eq('person_id',p.id).eq('owner_id',session.user.id).select('id');
+     if(deleted.error)throw deleted.error;
+     if(!deleted.data?.length)throw Error('No se pudo eliminar el registro; actualice y compruebe los permisos');
+     toast('PDF individual eliminado correctamente');
+     await refresh();
+    }catch(err){toast('No se pudo completar la eliminación: '+err.message,true);note.textContent='Error al eliminar: '+err.message}
+    finally{b.disabled=false}
+   });
    list.querySelectorAll('[data-view-index]').forEach(b=>b.onclick=async()=>{
     const r=files[Number(b.dataset.viewIndex)],url=await db.storage.from(r.bucket).createSignedUrl(r.storage_path,120);
     if(url.error)return toast(url.error.message,true);
