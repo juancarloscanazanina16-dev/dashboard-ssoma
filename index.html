@@ -71,13 +71,16 @@ function render(monthly,year){
 window.ssomaLiveHours=async function(db){
  const box=document.getElementById('ssomaLiveHours');if(!box||!db)return;
  const id=++request,year=new Date().getFullYear(),start=year+'-01-01',end=year+'-12-31';
- const [a,b]=await Promise.all([
+ const [a,b,c]=await Promise.all([
  db.from('ssoma_daily_hours').select('work_date,contractor_id,staff_count,operative_count,staff_hours,operative_hours').gte('work_date',start).lte('work_date',end).limit(10000),
- db.from('ssoma_events').select('event_date,event_type,severity,days_lost').gte('event_date',start).lte('event_date',end).limit(10000)
+ db.from('ssoma_events').select('event_date,event_type,severity,days_lost').gte('event_date',start).lte('event_date',end).limit(10000),
+ db.from('ssoma_monthly_statistics').select('year,month,workers,hours_worked').eq('year',year).limit(10000)
  ]);
  if(id!==request||!box.isConnected)return;
- if(a.error||b.error){box.textContent='No fue posible actualizar los indicadores: '+(a.error?.message||b.error?.message);return}
- box.innerHTML=render(compute(a.data||[],b.data||[],year),year);
+ if(a.error||b.error||c.error){box.textContent='No fue posible actualizar los indicadores: '+(a.error?.message||b.error?.message||c.error?.message);return}
+ const monthly=compute(a.data||[],b.data||[],year);
+ for(const x of (c.data||[])){const m=monthly[Number(x.month)-1];if(!m||m.days.size)continue;m.hht+=num(x.hours_worked);m.average=x.workers==null?null:num(x.workers);m.maximum=x.workers==null?null:num(x.workers);m.if=m.hht>0?m.computable*200000/m.hht:null;m.ig=m.hht>0?m.lost*200000/m.hht:null;m.ia=m.hht>0?m.if*m.ig/200:null;}
+ box.innerHTML=render(monthly,year);
  if((a.data||[]).length===10000||(b.data||[]).length===10000)box.insertAdjacentHTML('beforeend','<p style="color:#b42338">Advertencia: límite de 10 000 registros alcanzado; revisar paginación.</p>');
 };
 })();</script><script src="ssoma-master-documents.js"></script><script src="ssoma-inspections.js"></script><script src="ssoma-access.js"></script><script>
