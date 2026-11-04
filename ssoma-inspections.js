@@ -82,7 +82,7 @@ function attachGerenciaPlus(){if(window.__ssomaGerenciaPlus)return;window.__ssom
 /* Panel complementario desactivado: indicadores consolidados en una sola vista. */
 function loadCompactGerencia(){if(document.querySelector('link[href="ssoma-gerencia-compact.css"]'))return;const l=document.createElement('link');l.rel='stylesheet';l.href='ssoma-gerencia-compact.css';document.head.appendChild(l)}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',loadCompactGerencia);else loadCompactGerencia();
-function attachPersonnelLifecycle(){if(window.__personnelLifecycle)return;window.__personnelLifecycle=true;const l=document.createElement('link');l.rel='stylesheet';l.href='ssoma-personnel-lifecycle.css';document.head.appendChild(l);const j=document.createElement('script');j.src='ssoma-personnel-lifecycle.js';document.head.appendChild(j)}
+function attachPersonnelLifecycle(){if(window.__personnelLifecycle)return;window.__personnelLifecycle=true;const l=document.createElement('link');l.rel='stylesheet';l.href='ssoma-personnel-lifecycle.css';document.head.appendChild(l);const j=document.createElement('script');j.src='ssoma-personnel-lifecycle.js?v=20261104b';document.head.appendChild(j)}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',attachPersonnelLifecycle);else attachPersonnelLifecycle();
 window.ssomaInspections={page};
 })();
