@@ -3,14 +3,7 @@
 const B='sst-worker-files',H=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
 const N=x=>String(x||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();
 const iso=v=>{const m=String(v).match(/(\d{1,2})[\/.\-](\d{1,2})[\/.\-](20\d{2})/);if(!m)return '';const d=new Date(Date.UTC(+m[3],+m[2]-1,+m[1]));return d.getUTCDate()===+m[1]&&d.getUTCMonth()===+m[2]-1&&d.getUTCFullYear()===+m[3]?m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0'):''};
-async function pdfText(file){
- if(!window.pdfjsLib)await new Promise((ok,fail)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';s.onload=ok;s.onerror=()=>fail(Error('No se pudo iniciar lector PDF'));document.head.appendChild(s)});
- window.pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
- const doc=await window.pdfjsLib.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise;
- if(doc.numPages>100)throw Error('PDF demasiado extenso (máximo 100 páginas)');
- const pages=[];for(let i=1;i<=doc.numPages;i++){const p=await doc.getPage(i),t=await p.getTextContent();pages.push(t.items.map(z=>z.str).join(' '))}
- return pages.join('\n');
-}
+async function pdfText(file,onProgress){return (await window.ssomaReadPdf(file,onProgress)).text}
 function extract(text,kind){
  const n=N(text);
  const brands=[['Sanitas Perú S.A. EPS',/SANITAS/,'SCTR_SALUD'],['Crecer Seguros S.A.',/CRECER SEGUROS/,'SCTR_PENSION'],['Rímac Seguros',/RIMAC/],['La Positiva',/LA POSITIVA/],['Pacífico Seguros',/PACIFICO/],['MAPFRE',/MAPFRE/],['Interseguro',/INTERSEGURO/],['Protecta',/PROTECTA/],['EsSalud',/ESSALUD/,'SCTR_SALUD']];
@@ -44,11 +37,11 @@ window.attachWorkerDocumentFolders=function(modal,p,ctx){
    if(file.size>15*1024*1024)return note.textContent='Máximo 15 MB';
    note.textContent='Analizando documento...';
    try{
-    const data=extract(await pdfText(file),kind);
+    const data=extract(await pdfText(file,message=>{note.textContent=message}),kind);
     if(data.from)form.elements.issue_date.value=data.from;
     if(data.to)form.elements.expiry_date.value=data.to;
     if(data.provider)form.elements.provider_name.value=data.provider;
-    note.textContent=data.scanned?'PDF escaneado: requiere OCR. Complete datos manualmente.':!data.from||!data.to||!data.provider?'Extracción parcial. Revise o complete fechas y emisor antes de guardar.':'Campos sugeridos. Verifique las fechas y el emisor antes de guardar.';
+    note.textContent=data.scanned?'El OCR no encontró texto suficiente. Revise el PDF y complete los datos manualmente.':!data.from||!data.to||!data.provider?'Extracción parcial. Revise o complete fechas y emisor antes de guardar.':'Campos sugeridos. Verifique las fechas y el emisor antes de guardar.';
    }catch(e){note.textContent='No se pudo analizar: '+e.message+'. Puede guardar el archivo y registrar los datos manualmente.'}
   };
   button.onclick=async()=>{
