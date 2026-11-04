@@ -115,6 +115,39 @@ async function deleteDocument(id){
  }catch(e){msg('No se pudo eliminar el documento: '+e.message,true);}
  finally{busy=false;}
 }
+function exportRows(){
+ return filteredDocs().map(d=>[d.system_code,d.document_code,d.document_name,'V'+String(d.version_number).padStart(2,'0'),d.status==='PENDIENTE'?'En revisión':d.status==='VIGENTE'?'Vigente':'Obsoleto',d.document_type,extension(d.original_filename).toUpperCase(),new Date(d.uploaded_at).toLocaleDateString('es-PE')]);
+}
+const HEADERS=['Sistema','Código','Documento','Versión','Estado','Tipo','Formato','Fecha de carga'];
+function saveBlob(content,type,filename){
+ const url=URL.createObjectURL(new Blob([content],{type})),a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
+}
+function reportHtml(rows){
+ const body=[HEADERS,...rows].map((cells,i)=>'<tr>'+cells.map(v=>'<'+(i?'td':'th')+'>'+esc(v)+'</'+(i?'td':'th')+'>').join('')+'</tr>').join('');
+ return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Lista Maestra SSOMA</title><style>body{font-family:Arial,sans-serif;margin:24px;color:#19314b}h1{color:#12395c;font-size:21px}p{color:#52677b;font-size:12px}table{border-collapse:collapse;width:100%;font-size:11px}th{background:#163e61;color:white;text-align:left}th,td{border:1px solid #c8d7e2;padding:7px}tr:nth-child(even){background:#f0f6fa}@page{size:A4 landscape;margin:12mm}</style></head><body><h1>LISTA MAESTRA DOCUMENTAL SSOMA</h1><p>SGSST / SGA · Generado: '+new Date().toLocaleString('es-PE')+' · Registros: '+rows.length+'</p><table>'+body+'</table></body></html>';
+}
+function printReport(rows){
+ const w=window.open('','_blank');if(!w){msg('Habilita las ventanas emergentes para imprimir o guardar en PDF.',true);return;}
+ w.document.open();w.document.write(reportHtml(rows));w.document.close();w.focus();setTimeout(()=>w.print(),350);
+}
+async function exportMaster(kind){
+ const rows=exportRows();if(!rows.length)return msg('No hay documentos para exportar con los filtros actuales.',true);
+ const name='Lista_Maestra_SSOMA_'+new Date().toISOString().slice(0,10);
+ if(kind==='print'){printReport(rows);return;}
+ if(kind==='word'){
+  saveBlob('\ufeff'+reportHtml(rows),'application/msword',name+'.doc');msg('Lista Maestra exportada en Word (.doc).');return;
+ }
+ if(kind==='excel'){
+  const xml=s=>esc(s);
+  const data=[HEADERS,...rows].map(cells=>'<Row>'+cells.map(v=>'<Cell><Data ss:Type="String">'+xml(v)+'</Data></Cell>').join('')+'</Row>').join('');
+  const sheet='<?xml version="1.0" encoding="UTF-8"?><?mso-application progid="Excel.Sheet"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Worksheet ss:Name="Lista Maestra"><Table>'+data+'</Table></Worksheet></Workbook>';
+  saveBlob('\ufeff'+sheet,'application/vnd.ms-excel',name+'.xls');msg('Lista Maestra exportada en Excel (.xls).');return;
+ }
+ if(kind==='pdf'){
+  // El diálogo de impresión del navegador permite guardar como PDF sin exponer documentos privados.
+  printReport(rows);msg('Selecciona "Guardar como PDF" en la ventana de impresión.');return;
+ }
+}
 async function openFile(id){
  const d=docs.find(x=>x.id===id);if(!d)return;
  const r=await ctx.db.storage.from(BUCKET).createSignedUrl(d.storage_path,90,{download:extension(d.original_filename)==='pdf'?undefined:d.original_filename});
