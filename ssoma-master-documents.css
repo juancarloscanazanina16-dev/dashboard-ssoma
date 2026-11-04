@@ -4,3 +4,6 @@
 
 /* Semáforo de vigencia documental */
 .md-status-select.md-status-green{background:#dcfce7;border-color:#7bd5a2;color:#166534}.md-status-select.md-status-yellow{background:#fef3c7;border-color:#f2cb6b;color:#92400e}.md-status-select.md-status-red{background:#fee2e2;border-color:#f0a0a0;color:#991b1b}.md-status-select:focus{outline:2px solid #2c83b8;outline-offset:2px}
+
+/* Indicadores documentales y filtro semáforo */
+.md-kpi{text-align:left;cursor:pointer;transition:transform .15s,border-color .15s;min-height:100px}.md-kpi:hover{transform:translateY(-2px)}.md-kpi.selected{outline:2px solid #126eaa;outline-offset:1px}.md-kpi-green{background:#effcf3;border-color:#b8e9c8}.md-kpi-green strong,.md-kpi-green span{color:#176b3a}.md-kpi-yellow{background:#fffbeb;border-color:#f4df9b}.md-kpi-yellow strong,.md-kpi-yellow span{color:#8e5a08}.md-kpi-red{background:#fff2f2;border-color:#f4c5c5}.md-kpi-red strong,.md-kpi-red span{color:#a42b32}.md-toolbar{grid-template-columns:minmax(190px,2fr) repeat(3,minmax(135px,1fr))}@media(max-width:900px){.md-toolbar{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:600px){.md-toolbar{grid-template-columns:1fr}}
