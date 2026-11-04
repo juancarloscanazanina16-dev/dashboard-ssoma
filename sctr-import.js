@@ -6,10 +6,13 @@ const el=id=>document.getElementById(id);
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
 const norm=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
 const dateISO=s=>{const m=String(s).match(/(\d{1,2})[\/\-.](\d{1,2})[\/\-.](20\d{2})/);if(!m)return null;const d=new Date(Date.UTC(+m[3],+m[2]-1,+m[1]));return d.getUTCFullYear()===+m[3]&&d.getUTCMonth()===+m[2]-1&&d.getUTCDate()===+m[1]?m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0'):null};
-function insurer(text){
+function insurer(text,kind){
  const x=norm(text);
- const candidates=[['RÍMAC SEGUROS',/\bRIMAC\b/],['PACÍFICO SEGUROS',/\bPACIFICO\b/],['MAPFRE',/\bMAPFRE\b/],['LA POSITIVA',/\bLA POSITIVA\b/],['INTERSEGURO',/\bINTERSEGURO\b/],['PROTECTA SECURITY',/\bPROTECTA\b/],['ONCOSALUD',/\bONCOSALUD\b/],['ESSALUD',/\bESSALUD\b/]];
- return candidates.filter(([,rx])=>rx.test(x)).map(([n])=>n);
+ const candidates=[['Sanitas Perú S.A. EPS',/SANITAS/],['Crecer Seguros S.A.',/CRECER SEGUROS/],['RÍMAC SEGUROS',/\bRIMAC\b/],['PACÍFICO SEGUROS',/\bPACIFICO\b/],['MAPFRE',/\bMAPFRE\b/],['LA POSITIVA',/\bLA POSITIVA\b/],['INTERSEGURO',/\bINTERSEGURO\b/],['PROTECTA SECURITY',/\bPROTECTA\b/],['ONCOSALUD',/\bONCOSALUD\b/],['ESSALUD',/\bESSALUD\b/]];
+ const found=candidates.filter(([,rx])=>rx.test(x)).map(([n])=>n);
+ if(kind==='SCTR_SALUD'&&found.includes('Sanitas Perú S.A. EPS'))return ['Sanitas Perú S.A. EPS'];
+ if(kind==='SCTR_PENSION'&&found.includes('Crecer Seguros S.A.'))return ['Crecer Seguros S.A.'];
+ return found;
 }
 function dates(text){
  const patterns=[/(?:VIGENCIA|COBERTURA|PERIODO|PERÍODO)[^\n]{0,160}/gi,/(?:DESDE|INICIO|HASTA|FIN|VENCE|VENCIMIENTO)[^\n]{0,85}/gi];
@@ -49,7 +52,7 @@ async function analyze(){
  if(file.type!=='application/pdf'&&!file.name.toLowerCase().endsWith('.pdf'))throw Error('Solo se aceptan archivos PDF');
  const text=await pdfText(file);
  if(text.replace(/\s/g,'').length<50)throw Error(file.name+': PDF escaneado sin texto. Se necesita OCR para procesarlo.');
- const ins=insurer(text),period=dates(text);
+ const ins=insurer(text,kind),period=dates(text);
  results.push({kind,file:file.name,insurers:ins,from:period.from,to:period.to,matches:candidatesFor(text,contractorId),textLength:text.length});
  }
  currentContractor=contractorId;render();
