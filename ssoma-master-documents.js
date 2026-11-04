@@ -22,7 +22,7 @@ function page(c){ctx=c;system=c.initialSystem||'TODOS';query='';docs=[];setTimeo
 <div id="md-preview" class="md-preview muted">Ejemplo: SGSST-ATS-001_Analisis_de_trabajo_seguro_V01.pdf</div><p class="muted">Los documentos cargados quedan PENDIENTES hasta su revisión y aprobación. No se publican automáticamente como vigentes.</p></div>
 <div class="card md-panel"><div class="md-panel-title"><div><h3>Biblioteca y Lista Maestra</h3><p class="muted">Búsqueda por código, nombre, tipo, sistema o versión</p></div><button id="md-refresh" class="btn light small">↻ Actualizar</button></div>
 <div class="md-toolbar"><input id="md-search" placeholder="Buscar: SGSST-ATS-001, inspección, V02..." aria-label="Buscar documentos"><select id="md-system"><option value="TODOS">Todos los sistemas</option><option value="SGSST">SGSST</option><option value="SGA">SGA</option></select><select id="md-type"><option value="TODOS">Todas las carpetas</option></select></div>
-<div id="md-folders" class="md-folders"></div><div class="tablewrap"><table class="md-table"><thead><tr><th>Sistema / Carpeta</th><th>Código</th><th>Documento</th><th>Versión</th><th>Estado</th><th>Carga</th><th>Archivo</th></tr></thead><tbody id="md-rows"><tr><td colspan="7">Cargando documentos...</td></tr></tbody></table></div><p class="muted md-note">Cada versión se conserva como registro independiente. El historial no se sobrescribe.</p></div></section>`;}
+<div id="md-folders" class="md-folders"></div><div class="tablewrap"><table class="md-table"><thead><tr><th>Sistema / Carpeta</th><th>Código</th><th>Documento</th><th>Versión</th><th>Estado</th><th>Carga</th><th>Archivo</th><th>Acciones</th></tr></thead><tbody id="md-rows"><tr><td colspan="8">Cargando documentos...</td></tr></tbody></table></div><p class="muted md-note">Cada versión se conserva como registro independiente. El historial no se sobrescribe.</p></div></section>`;}
 function folders(){
  const e=document.getElementById('md-folders'),t=document.getElementById('md-type');if(!e||!t)return;
  const systems=system==='TODOS'?['SGSST','SGA']:[system];
@@ -37,7 +37,7 @@ function draw(){
  folders();
  document.querySelectorAll('[data-md-tab]').forEach(b=>{b.classList.toggle('active',b.dataset.mdTab===system);b.setAttribute('aria-selected',String(b.dataset.mdTab===system));});const type=n('md-type').value;
  const rows=docs.filter(d=>(system==='TODOS'||d.system_code===system)&&(type==='TODOS'||type===d.system_code+':'+d.document_type)&&[d.document_code,d.document_name,d.document_type,d.system_code,'V'+String(d.version_number).padStart(2,'0')].join(' ').toLowerCase().includes(query.toLowerCase()));
- n('md-rows').innerHTML=rows.length?rows.map(d=>`<tr><td><span class="md-system ${d.system_code==='SGA'?'env':''}">${esc(d.system_code)}</span><br><small>${esc(TYPES[d.system_code]?.[d.document_type]||d.document_type)}</small></td><td><b>${esc(d.document_code)}</b></td><td>${esc(d.document_name)}</td><td>V${String(d.version_number).padStart(2,'0')}</td><td><span class="pill ${d.status==='VIGENTE'?'':d.status==='PENDIENTE'?'yellow':'red'}">${esc(d.status)}</span></td><td>${new Date(d.uploaded_at).toLocaleDateString('es-PE')}</td><td><button type="button" class="btn light small" data-md-open="${esc(d.id)}">Ver PDF</button></td></tr>`).join(''):'<tr><td colspan="7" class="muted">No se encontraron documentos.</td></tr>';
+ n('md-rows').innerHTML=rows.length?rows.map(d=>`<tr><td><span class="md-system ${d.system_code==='SGA'?'env':''}">${esc(d.system_code)}</span><br><small>${esc(TYPES[d.system_code]?.[d.document_type]||d.document_type)}</small></td><td><b>${esc(d.document_code)}</b></td><td>${esc(d.document_name)}</td><td>V${String(d.version_number).padStart(2,'0')}</td><td><select class="md-status-select" data-md-status="${esc(d.id)}" aria-label="Estado de ${esc(d.document_code)}"><option value="PENDIENTE" ${d.status==='PENDIENTE'?'selected':''}>En revisión</option><option value="VIGENTE" ${d.status==='VIGENTE'?'selected':''}>Válido / Vigente</option><option value="OBSOLETO" ${d.status==='OBSOLETO'?'selected':''}>Obsoleto</option></select></td><td>${new Date(d.uploaded_at).toLocaleDateString('es-PE')}</td><td><button type="button" class="btn light small" data-md-open="${esc(d.id)}">Ver PDF</button></td><td><button type="button" class="btn red small" data-md-delete="${esc(d.id)}" aria-label="Eliminar ${esc(d.document_code)} versión ${d.version_number}">Eliminar</button></td></tr>`).join(''):'<tr><td colspan="7" class="muted">No se encontraron documentos.</td></tr>';
 }
 async function refresh(){
  if(!ctx||!root())return;
@@ -77,6 +77,38 @@ async function upload(){
  }catch(e){msg('Error de carga: '+e.message,true);}
  finally{busy=false;if(button){button.disabled=false;button.textContent='↑ Subir y registrar';}}
 }
+async function setStatus(id,newStatus){
+ if(busy||!ctx)return;
+ const d=docs.find(x=>x.id===id);if(!d||!['PENDIENTE','VIGENTE','OBSOLETO'].includes(newStatus))return;
+ if(d.status===newStatus)return;
+ if(newStatus==='VIGENTE'){
+  const current=docs.find(x=>x.id!==id&&x.document_code===d.document_code&&x.status==='VIGENTE');
+  if(current){msg('Primero marca como obsoleta la versión vigente de '+d.document_code+'. Solo puede existir una versión vigente.',true);draw();return;}
+  if(!window.confirm('¿Confirmas que revisaste y validaste '+d.document_code+' V'+String(d.version_number).padStart(2,'0')+'? Esta acción cambia su estado a VIGENTE.')){draw();return;}
+ }
+ busy=true;
+ try{
+  const r=await ctx.db.from(TABLE).update({status:newStatus,approved_at:newStatus==='VIGENTE'?new Date().toISOString():null}).eq('id',id).select('id').single();
+  if(r.error)throw r.error;
+  await refresh();msg('Estado actualizado: '+d.document_code+' → '+(newStatus==='PENDIENTE'?'En revisión':newStatus==='VIGENTE'?'Válido / Vigente':'Obsoleto'));
+ }catch(e){msg('No se pudo actualizar el estado: '+e.message,true);draw();}
+ finally{busy=false;}
+}
+async function deleteDocument(id){
+ if(busy||!ctx)return;
+ const d=docs.find(x=>x.id===id);if(!d)return;
+ if(!window.confirm('¿Eliminar definitivamente '+d.document_code+' V'+String(d.version_number).padStart(2,'0')+'? Se borrará este registro y su PDF. Esta acción no se puede deshacer.'))return;
+ busy=true;
+ try{
+  const r=await ctx.db.from(TABLE).delete().eq('id',id).select('id').single();
+  if(r.error)throw r.error;
+  const f=await ctx.db.storage.from(BUCKET).remove([d.storage_path]);
+  await refresh();
+  if(f.error)msg('Registro eliminado, pero no se pudo borrar el PDF del almacenamiento: '+f.error.message,true);
+  else msg('Documento eliminado: '+d.document_code+' V'+String(d.version_number).padStart(2,'0'));
+ }catch(e){msg('No se pudo eliminar el documento: '+e.message,true);}
+ finally{busy=false;}
+}
 async function openFile(id){
  const d=docs.find(x=>x.id===id);if(!d)return;
  const r=await ctx.db.storage.from(BUCKET).createSignedUrl(d.storage_path,90);
@@ -88,10 +120,10 @@ document.addEventListener('click',e=>{
  const b=e.target.closest('button');if(!b)return;
  if(b.dataset.mdTab){system=b.dataset.mdTab;document.getElementById('md-system').value=system;document.getElementById('md-type').value='TODOS';draw();}if(b.id==='md-upload')upload();
  if(b.id==='md-refresh')refresh();
- if(b.dataset.mdOpen)openFile(b.dataset.mdOpen);
+ if(b.dataset.mdOpen)openFile(b.dataset.mdOpen);if(b.dataset.mdDelete)deleteDocument(b.dataset.mdDelete);
  if(b.dataset.mdFolder){const [s]=b.dataset.mdFolder.split(':');system=s;document.getElementById('md-system').value=s;folders();document.getElementById('md-type').value=b.dataset.mdFolder;draw();}
 });
-document.addEventListener('change',e=>{if(!root())return;if(e.target.id==='md-file')preview();if(e.target.id==='md-system'){system=e.target.value;draw();}if(e.target.id==='md-type')draw();});
+document.addEventListener('change',e=>{if(!root())return;if(e.target.id==='md-file')preview();if(e.target.id==='md-system'){system=e.target.value;draw();}if(e.target.id==='md-type')draw();if(e.target.dataset.mdStatus)setStatus(e.target.dataset.mdStatus,e.target.value);});
 document.addEventListener('input',e=>{if(!root())return;if(e.target.id==='md-search'){query=e.target.value;draw();}});
 window.ssomaMasterDocuments={page,parse,TYPES};
 })();
