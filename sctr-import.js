@@ -18,7 +18,7 @@ function dates(text){
  const patterns=[/(?:VIGENCIA|COBERTURA|PERIODO|PERÍODO)[^\n]{0,160}/gi,/(?:DESDE|INICIO|HASTA|FIN|VENCE|VENCIMIENTO)[^\n]{0,85}/gi];
  const lines=patterns.flatMap(rx=>[...text.matchAll(rx)].map(m=>m[0])).slice(0,35);
  const pairs=lines.map(line=>({line,ds:[...line.matchAll(/\b\d{1,2}[\/\-.]\d{1,2}[\/\-.]20\d{2}\b/g)].map(m=>dateISO(m[0])).filter(Boolean)}));
- const both=pairs.find(x=>x.ds.length>=2&&x.ds[0]<=x.ds[1]);
+ const both=pairs.filter(x=>x.ds.length>=2&&x.ds[0]<=x.ds[1]).sort((a,b)=>b.ds[1].localeCompare(a.ds[1]))[0];
  if(both)return {from:both.ds[0],to:both.ds[1],source:both.line};
  const from=pairs.find(x=>/DESDE|INICIO/i.test(x.line)&&x.ds.length),to=pairs.find(x=>/HASTA|FIN|VENCE|VENCIMIENTO/i.test(x.line)&&x.ds.length);
  return {from:from?.ds[0]||'',to:to?.ds[0]||'',source:[from?.line,to?.line].filter(Boolean).join(' | ')};
@@ -38,10 +38,19 @@ function candidatesFor(text,contractorId){
  if(/^\d{8}$/.test(dni)&&new RegExp('(^|\\D)'+dni+'(?!\\d)').test(text))matches.push(p);
  }return matches;
 }
+function planUpdates(){
+ const old=window.sctrContext.state.documents||[],plan=[];
+ for(let i=0;i<results.length;i++){
+ const r=results[i],end=el('sctrResults')?.querySelector('[data-sctr-to="'+i+'"]')?.value||r.to;
+ for(const p of r.matches){const prior=old.find(d=>d.person_id===p.id&&d.document_type===r.kind);plan.push({index:i,p,prior,renew:!!end&&(!prior?.expiry_date||end>prior.expiry_date),end});}
+ }
+ return plan;
+}
 function render(){
  const host=el('sctrResults');if(!host)return;
  host.innerHTML=results.length?results.map((r,i)=>'<div class="card" style="padding:14px;margin:12px 0"><b>'+esc(r.file)+'</b> · '+esc(r.kind==='SCTR_SALUD'?'Salud':'Pensión')+'<p class="muted">Aseguradora detectada: <b>'+esc(r.insurers.join(', ')||'No identificada')+'</b> · DNI coincidentes: <b>'+r.matches.length+'</b> · Páginas con texto: '+r.textLength+'</p><div class="formgrid"><label>Aseguradora (confirmar)<input data-sctr-insurer="'+i+'" value="'+esc(r.insurers.length===1?r.insurers[0]:'')+'" placeholder="Nombre de aseguradora"></label><label>Inicio cobertura<input type="date" data-sctr-from="'+i+'" value="'+esc(r.from||'')+'"></label><label>Fin cobertura<input type="date" data-sctr-to="'+i+'" value="'+esc(r.to||'')+'"></label></div><p class="muted">DNI encontrados en la contrata seleccionada: '+esc(r.matches.map(p=>p.full_name+' ('+p.dni+')').join('; ')||'Ninguno')+'</p><p class="muted">Las fechas detectadas son sugerencias: verificar contra la póliza antes de confirmar.</p></div>').join('')+'<label style="display:flex;align-items:center;gap:8px;margin:12px 0"><input type="checkbox" id="sctrReviewed"> He revisado los PDF, la contratista, la aseguradora, los DNI y las fechas de cobertura.</label><button class="btn green" id="sctrConfirm">Confirmar y actualizar '+results.reduce((n,r)=>n+r.matches.length,0)+' coberturas</button>':'<p class="muted">Seleccione una contratista y adjunte uno o ambos PDF para analizar su contenido.</p>';
  el('sctrConfirm')?.addEventListener('click',save);
+ host.querySelectorAll('[data-sctr-to]').forEach(x=>x.addEventListener('change',()=>{const i=Number(x.dataset.sctrTo),r=results[i],old=window.sctrContext.state.documents||[];host.querySelectorAll('[data-sctr-worker="'+i+'"]').forEach(c=>{const p=r.matches.find(p=>p.id===c.value),prior=old.find(d=>d.person_id===p.id&&d.document_type===r.kind);c.checked=!prior?.expiry_date||x.value>prior.expiry_date})}));
 }
 async function analyze(){
  const contractorId=el('sctrContractor').value, files=[['SCTR_SALUD',el('sctrHealth').files[0]],['SCTR_PENSION',el('sctrPension').files[0]]].filter(x=>x[1]);
@@ -66,7 +75,7 @@ async function save(){
  const r=results[i],ins=el('sctrResults').querySelector('[data-sctr-insurer="'+i+'"]').value.trim(),from=el('sctrResults').querySelector('[data-sctr-from="'+i+'"]').value,to=el('sctrResults').querySelector('[data-sctr-to="'+i+'"]').value;
  if(!ins||!from||!to||from>to)return window.sctrContext.toast('Complete aseguradora y fechas válidas de cada póliza',true);
  if(to<window.sctrContext.isoToday())return window.sctrContext.toast('No se puede registrar como vigente una cobertura vencida',true);
- for(const p of r.matches)payload.push({owner_id:window.sctrContext.session.user.id,person_id:p.id,document_type:r.kind,issue_date:from,expiry_date:to,provider_name:ins});
+ for(const p of r.matches){const checked=el('sctrResults').querySelector('[data-sctr-worker="'+i+'"][value="'+p.id+'"]')?.checked;if(checked)payload.push({owner_id:window.sctrContext.session.user.id,person_id:p.id,document_type:r.kind,issue_date:from,expiry_date:to,provider_name:ins});}
  }
  if(!results.length)return window.sctrContext.toast('No hay PDF analizados',true);
  const btn=el('sctrConfirm');btn.disabled=true;
@@ -81,10 +90,10 @@ async function save(){
   if(failures.length)throw Error('No se completó el archivo empresarial: '+failures.join('; ')+'. Los PDF guardados se conservan en el expediente.');
   // Solo actualizar la ficha individual cuando la nueva cobertura no sea anterior a la registrada.
   const previous=window.sctrContext.state.documents||[];
-  const applicable=payload.filter(p=>{const old=previous.find(d=>d.person_id===p.person_id&&d.document_type===p.document_type);return !old?.expiry_date||p.expiry_date>=old.expiry_date});
+  const applicable=payload.filter(p=>{const old=previous.find(d=>d.person_id===p.person_id&&d.document_type===p.document_type);return !old?.expiry_date||p.expiry_date>old.expiry_date});
   const omitted=payload.length-applicable.length;
   if(applicable.length){const response=await window.sctrContext.db.from('sst_worker_documents').upsert(applicable,{onConflict:'person_id,document_type'});window.sctrContext.check(response.error);}
-  window.sctrContext.toast('PDF empresariales archivados: '+archived.length+' · Coberturas individuales actualizadas: '+applicable.length+(omitted?' · Renovaciones anteriores omitidas: '+omitted:''));
+  window.sctrContext.toast('PDF empresariales archivados: '+archived.length+' · Coberturas individuales renovadas: '+applicable.length+(omitted?' · Sin actualización por vigencia igual o anterior: '+omitted:''));
   el('sctrImportModal')?.remove();await window.sctrContext.load();
  }catch(e){window.sctrContext.toast('Atención: '+e.message,true);btn.disabled=false}
 }
