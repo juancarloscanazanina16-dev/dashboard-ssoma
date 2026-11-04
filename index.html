@@ -20,7 +20,15 @@ table{border-collapse:separate;border-spacing:0}thead th{position:sticky;top:0;b
 .brand-logo-row{display:flex;align-items:center;min-height:75px}.company-logo{max-width:185px;max-height:76px;width:auto;height:auto;object-fit:contain;border-radius:8px;background:#fff;padding:5px}.logo-change{display:block;margin-top:11px;background:#ffffff1b;color:#e2faf8;border:1px solid #ffffff36;border-radius:8px;padding:7px 11px;font-size:12px;font-weight:650;text-align:left}.logo-change:hover{background:#ffffff30}.brand .logo-change{letter-spacing:0}.brand-logo-row #brandDefault{white-space:nowrap}@media(max-width:750px){.brand-logo-row{min-height:42px}.company-logo{max-height:48px;max-width:130px}.logo-change{margin-top:5px}}
 .logo-change{width:28px;height:25px;display:flex;align-items:center;justify-content:center;padding:0!important;border-radius:7px;font-size:19px;line-height:1;opacity:.68;transition:opacity .15s,background .15s}.logo-change:hover,.logo-change:focus-visible{opacity:1}
 .brand{position:relative}.brand-logo-row{padding-right:34px}.brand .logo-change{position:absolute;right:10px;top:15px;margin:0;width:29px;height:29px;border:1px solid #ffffff22;background:#ffffff0d;color:#b7d1dd;border-radius:9px;opacity:.75;display:flex;align-items:center;justify-content:center;padding:0;transition:opacity .15s,background .15s,color .15s}.brand .logo-change:hover,.brand .logo-change:focus-visible{background:#ffffff25;color:#fff;opacity:1}.brand .logo-change svg{display:block}@media(max-width:750px){.brand .logo-change{top:2px;right:8px}}
-</style><link rel="stylesheet" href="ssoma-master-documents.css"><link rel="stylesheet" href="ssoma-inspections.css"></head><body>
+</style><link rel="stylesheet" href="ssoma-master-documents.css"><link rel="stylesheet" href="ssoma-inspections.css"><style>
+#ssomaLiveHours{padding:0!important;overflow:hidden;border:1px solid #dce7ed!important;background:#fff!important}
+.ss-head{padding:23px 25px;background:linear-gradient(110deg,#0d3049,#126475);color:white;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.ss-head h2{font-size:21px;margin:6px 0;color:#fff}.ss-head p{margin:0;color:#cde5ea;font-size:12px}.ss-eyebrow{font-size:10px;letter-spacing:1.5px;font-weight:800;color:#9de9d8}.ss-live{font-size:11px;border:1px solid #7ed7c6;padding:7px 11px;border-radius:20px;color:#baf7e7}
+.ss-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding:20px 22px 10px}.ss-index{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding:4px 22px 20px}
+.ss-stat{border:1px solid #e1eaf0;border-radius:12px;padding:16px;background:#f9fcfe;display:flex;flex-direction:column;gap:6px}.ss-stat small{font-size:12px;font-weight:700;color:#567087}.ss-stat strong{font-size:28px;color:#11364e;letter-spacing:-.7px}.ss-stat span{font-size:11px;color:#718497}.ss-index .ss-stat{background:#eaf8f5;border-color:#cdebe3}.ss-index .ss-stat strong{color:#007c73}
+.ss-table-title{display:flex;justify-content:space-between;gap:10px;padding:16px 23px 12px;border-top:1px solid #e5edf2}.ss-table-title span{font-size:12px;color:#718497}.ss-table{margin:0 20px;width:calc(100% - 40px)}.ss-table td,.ss-table th{padding:11px 10px}.ss-note{font-size:12px;color:#557087;line-height:1.6;background:#f2f7fa;padding:15px 22px;margin-top:17px}
+@media(max-width:760px){.ss-grid,.ss-index{grid-template-columns:repeat(2,minmax(0,1fr));padding:12px}.ss-index{grid-template-columns:1fr}.ss-head{padding:18px}.ss-stat strong{font-size:24px}}
+</style></head><body>
 <div id="login" class="login"><form id="loginForm" class="loginbox"><h1>🛡️ SSOMA | Acceso seguro</h1><div class="muted">Control de inducciones y reinducciones</div><div id="setupNotice" class="notice hidden"></div><label>Correo electrónico<input id="email" type="email" required autocomplete="username"></label><label>Contraseña<input id="password" type="password" minlength="6" required autocomplete="current-password"></label><button class="btn green" type="submit">Iniciar sesión</button><div class="subtle">El administrador debe crear los usuarios en Supabase Authentication. No se permite registro público desde este panel.</div></form></div>
 <div id="app" class="app hidden"><aside class="sidebar"><div class="brand"><div class="brand-logo-row"><img id="companyLogo" class="company-logo hidden" alt="Logo de empresa"><span id="brandDefault">◈ SSOMA</span></div><small>Seguridad · Salud · Medio Ambiente</small><button id="changeLogoBtn" type="button" class="logo-change" title="Subir o cambiar logotipo" aria-label="Subir o cambiar logotipo"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5"/><path d="M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/></svg></button><input id="logoFile" type="file" accept="image/png,image/jpeg,image/webp" class="hidden" aria-label="Seleccionar logo"></div><nav id="nav" class="nav"><button data-page="dashboard" class="active">▦ Dashboard</button><button data-page="personnel">♙ Personal</button><button data-page="trainings">▣ Inducciones</button><button data-page="retrainings">↻ Reinducciones</button><button data-page="contractors">▤ Contratistas</button><button data-page="validity">◷ Vigencias</button><button data-page="alerts">♧ Alertas SST</button><button data-page="archive">▣ Expedientes</button><button data-page="reports">▥ Reportes</button><button data-page="executive">▤ Gestión ejecutiva</button><button data-page="masterDocs">▣ Gestión Documental SSOMA</button><button data-page="inspections">▣ Inspecciones y Hallazgos</button><button data-page="access" id="accessNav">⚙ Configuración y Usuarios</button></nav></aside><main class="main"><header class="top"><div><h1 id="pageTitle">Control de Inducciones y Reinducciones</h1><div class="muted" id="projectLabel">Proyecto de Construcción Civil · SSOMA <span class="version-v2">● SSOMA CONTROL 2.0</span></div></div><div class="actions"><span id="todayLabel" class="muted"></span><button class="btn green" id="exportPanelPdf" type="button">↓ Exportar panel PDF</button><button class="btn light" id="refreshBtn">↻ Actualizar</button><button class="btn light" id="logoutBtn">Salir</button></div></header><div id="content"></div></main></div>
 <div id="modal" class="modal hidden"><div class="modalbox"><div class="modalhead"><h2 id="modalTitle"></h2><button class="btn light" id="closeModal">✕ Cerrar</button></div><form id="editorForm"><div id="formFields" class="formgrid"></div><div class="actions" style="margin-top:18px"><button type="submit" class="btn green">Guardar en base de datos</button><button type="button" class="btn light" id="cancelModal">Cancelar</button></div></form></div></div><div id="toast" class="toast hidden" role="status"></div>
@@ -31,58 +39,42 @@ const months=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto',
 const fmt=(n,d=2)=>new Intl.NumberFormat('es-PE',{minimumFractionDigits:d,maximumFractionDigits:d}).format(n);
 const num=x=>Number(x)||0;
 const escape=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
-function compute(daily,events,year){
+function compute(daily,events){
  const monthly=Array.from({length:12},(_,i)=>({month:i+1,days:new Map(),hht:0,accidents:0,computable:0,lost:0}));
- daily.forEach(r=>{
-  const m=Number(String(r.work_date).slice(5,7))-1;if(m<0||m>11)return;
-  const item=monthly[m],count=num(r.staff_count)+num(r.operative_count);
-  item.days.set(r.work_date,(item.days.get(r.work_date)||0)+count);
-  item.hht+=num(r.staff_count)*num(r.staff_hours)+num(r.operative_count)*num(r.operative_hours);
- });
- events.forEach(e=>{
-  const m=Number(String(e.event_date).slice(5,7))-1;if(m<0||m>11)return;
-  const kind=String(e.event_type||'').toLowerCase(),severity=String(e.severity||'').toLowerCase();
-  if(!kind.includes('accident'))return;
-  const item=monthly[m];item.accidents++;
-  if(/incapacit|mortal|fatal/.test(severity)){item.computable++;item.lost+=Math.max(0,num(e.days_lost))}
- });
- monthly.forEach(x=>{
-  const counts=[...x.days.values()];
-  x.average=counts.length?counts.reduce((a,b)=>a+b,0)/counts.length:null;
-  x.maximum=counts.length?Math.max(...counts):null;
-  x.if=x.hht>0?x.computable*200000/x.hht:null;
-  x.ig=x.hht>0?x.lost*200000/x.hht:null;
-  x.ia=x.hht>0?x.if*x.ig/200:null;
- });
+ for(const r of daily){const i=Number(String(r.work_date).slice(5,7))-1;if(i<0||i>11)continue;const m=monthly[i],count=num(r.staff_count)+num(r.operative_count);m.days.set(r.work_date,(m.days.get(r.work_date)||0)+count);m.hht+=num(r.staff_count)*num(r.staff_hours)+num(r.operative_count)*num(r.operative_hours)}
+ for(const e of events){const i=Number(String(e.event_date).slice(5,7))-1;if(i<0||i>11||!String(e.event_type||'').toLowerCase().includes('accident'))continue;const m=monthly[i];m.accidents++;if(/incapacit|mortal|fatal/.test(String(e.severity||'').toLowerCase())){m.computable++;m.lost+=Math.max(0,num(e.days_lost))}}
+ for(const m of monthly){const v=[...m.days.values()];m.average=v.length?v.reduce((a,b)=>a+b,0)/v.length:null;m.maximum=v.length?Math.max(...v):null;m.last=v.length?v[v.length-1]:null;m.if=m.hht?m.computable*200000/m.hht:null;m.ig=m.hht?m.lost*200000/m.hht:null;m.ia=m.hht?m.if*m.ig/200:null}
  return monthly;
 }
 function render(monthly,year){
- const totalHht=monthly.reduce((n,m)=>n+m.hht,0),accidents=monthly.reduce((n,m)=>n+m.accidents,0),computable=monthly.reduce((n,m)=>n+m.computable,0),lost=monthly.reduce((n,m)=>n+m.lost,0);
- const counts=monthly.flatMap(m=>[...m.days.values()]),average=counts.length?counts.reduce((a,b)=>a+b,0)/counts.length:null,maximum=counts.length?Math.max(...counts):null;
- const ifv=totalHht?computable*200000/totalHht:null,ig=totalHht?lost*200000/totalHht:null,iav=totalHht?ifv*ig/200:null;
- const value=n=>n===null?'—':fmt(n);
- const row=m=>'<tr><td>'+months[m.month-1]+'</td><td>'+m.accidents+'</td><td>'+m.computable+'</td><td>'+m.lost+'</td><td>'+(m.average===null?'—':fmt(m.average,1))+'</td><td>'+(m.maximum===null?'—':fmt(m.maximum,0))+'</td><td>'+fmt(m.hht,0)+'</td><td>'+value(m.if)+'</td><td>'+value(m.ig)+'</td><td>'+value(m.ia)+'</td></tr>';
- return '<h3 style="margin:0 0 12px;color:#15354b">Indicadores de seguridad · '+year+'</h3>'+
- '<div class="kpis"><div class="card"><b>'+fmt(totalHht,0)+'</b><p>HHT acumuladas</p></div><div class="card"><b>'+(average===null?'—':fmt(average,1))+'</b><p>Trabajadores promedio</p></div><div class="card"><b>'+(maximum===null?'—':fmt(maximum,0))+'</b><p>Dotación máxima</p></div><div class="card"><b>'+value(ifv)+'</b><p>IF</p></div><div class="card"><b>'+value(ig)+'</b><p>IG</p></div><div class="card"><b>'+value(iav)+'</b><p>IA</p></div></div>'+
- '<div class="tablewrap" style="margin-top:14px"><table><thead><tr><th>Mes</th><th>Accidentes</th><th>Computables</th><th>Días perdidos</th><th>Promedio</th><th>Máximo</th><th>HHT</th><th>IF</th><th>IG</th><th>IA</th></tr></thead><tbody>'+monthly.map(row).join('')+'</tbody></table></div>'+
- '<p class="muted" style="margin-top:12px">Acumulado anual: '+computable+' accidentes computables · '+lost+' días perdidos · '+fmt(totalHht,0)+' HHT. IF '+value(ifv)+' · IG '+value(ig)+' · IA '+value(iav)+'. Dotación promedio sobre '+counts.length+' jornadas registradas. HHT = personal × horas por grupo. IF e IG por 200 000 HHT; IA = IF × IG / 200. Sin HHT se muestra —.</p>'+
- '<p class="muted">Revisión SSOMA: la clasificación de accidentes computables y días perdidos debe validarse en los registros de eventos. Este panel no sustituye la investigación ni la aprobación del reporte oficial.</p>';
+ const hht=monthly.reduce((a,m)=>a+m.hht,0),acc=monthly.reduce((a,m)=>a+m.accidents,0),comp=monthly.reduce((a,m)=>a+m.computable,0),lost=monthly.reduce((a,m)=>a+m.lost,0);
+ const daily=monthly.flatMap(m=>[...m.days.entries()]).sort((a,b)=>a[0].localeCompare(b[0])),avg=daily.length?daily.reduce((a,v)=>a+v[1],0)/daily.length:null,max=daily.length?Math.max(...daily.map(v=>v[1])):null,last=daily.length?daily[daily.length-1]:null;
+ const IF=hht?comp*200000/hht:null,IG=hht?lost*200000/hht:null,IA=hht?IF*IG/200:null;
+ const val=(n,d=2)=>n==null?'—':fmt(n,d);
+ const metric=(name,value,detail)=>'<div class="ss-stat"><small>'+name+'</small><strong>'+value+'</strong><span>'+detail+'</span></div>';
+ const rows=monthly.map(m=>'<tr><td><b>'+months[m.month-1]+'</b></td><td>'+m.days.size+'</td><td>'+val(m.average,1)+'</td><td>'+val(m.maximum,0)+'</td><td>'+val(m.hht,0)+'</td><td>'+m.accidents+'</td><td>'+m.computable+'</td><td>'+m.lost+'</td><td>'+val(m.if)+'</td><td>'+val(m.ig)+'</td><td>'+val(m.ia)+'</td></tr>').join('');
+ return '<div class="ss-head"><div><span class="ss-eyebrow">CONTROL ESTADÍSTICO · '+year+'</span><h2>Indicadores de seguridad y accidentabilidad</h2><p>Datos vinculados al registro diario de jornadas y accidentes</p></div><span class="ss-live">● Actualización automática</span></div>'+
+ '<div class="ss-grid">'+metric('HHT acumuladas',val(hht,0),'Horas-hombre trabajadas')+metric('Dotación último día',last?val(last[1],0):'—',last?'Fecha: '+last[0].split('-').reverse().join('/'):'Sin jornadas registradas')+metric('Trabajadores promedio',val(avg,1),daily.length+' jornadas registradas')+metric('Dotación máxima',val(max,0),'Máximo diario')+metric('Accidentes',acc,'Total de accidentes')+metric('Días perdidos',lost,'Según eventos registrados')+'</div>'+
+ '<div class="ss-index">'+metric('Índice de frecuencia · IF',val(IF),'Por 200 000 HHT')+metric('Índice de gravedad · IG',val(IG),'Por 200 000 HHT')+metric('Índice de accidentabilidad · IA',val(IA),'IF × IG / 200')+'</div>'+
+ '<div class="ss-table-title"><b>Evolución mensual</b><span>Acumulado del año '+year+'</span></div><div class="tablewrap"><table class="ss-table"><thead><tr><th>Mes</th><th>Jornadas</th><th>Promedio</th><th>Máximo</th><th>HHT</th><th>Accidentes</th><th>Computables</th><th>Días perdidos</th><th>IF</th><th>IG</th><th>IA</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+ '<div class="ss-note"><b>Criterio de cálculo:</b> La dotación diaria suma los trabajadores de las contratistas en una misma fecha; el promedio corresponde a las dotaciones diarias registradas, no a la suma de trabajadores de diferentes días. Las HHT sí se acumulan. Sin HHT se muestran índices no calculables (—). Los accidentes computables dependen de la clasificación de gravedad registrada.</div>';
 }
 window.ssomaLiveHours=async function(db){
  const box=document.getElementById('ssomaLiveHours');if(!box||!db)return;
  const id=++request,year=new Date().getFullYear(),start=year+'-01-01',end=year+'-12-31';
  const [a,b,c]=await Promise.all([
- db.from('ssoma_daily_hours').select('work_date,contractor_id,staff_count,operative_count,staff_hours,operative_hours').gte('work_date',start).lte('work_date',end).limit(10000),
+ db.from('ssoma_daily_hours').select('work_date,contractor_id,staff_count,operative_count,staff_hours,operative_hours').gte('work_date',start).lte('work_date',end).order('work_date').limit(10000),
  db.from('ssoma_events').select('event_date,event_type,severity,days_lost').gte('event_date',start).lte('event_date',end).limit(10000),
  db.from('ssoma_monthly_statistics').select('year,month,workers,hours_worked').eq('year',year).limit(10000)
  ]);
  if(id!==request||!box.isConnected)return;
- if(a.error||b.error||c.error){box.textContent='No fue posible actualizar los indicadores: '+(a.error?.message||b.error?.message||c.error?.message);return}
- const monthly=compute(a.data||[],b.data||[],year);
- for(const x of (c.data||[])){const m=monthly[Number(x.month)-1];if(!m||m.days.size)continue;m.hht+=num(x.hours_worked);m.average=x.workers==null?null:num(x.workers);m.maximum=x.workers==null?null:num(x.workers);m.if=m.hht>0?m.computable*200000/m.hht:null;m.ig=m.hht>0?m.lost*200000/m.hht:null;m.ia=m.hht>0?m.if*m.ig/200:null;}
+ if(a.error||b.error){box.textContent='No se pudieron sincronizar las estadísticas: '+(a.error?.message||b.error?.message);return}
+ const monthly=compute(a.data||[],b.data||[]);
+ if(!c.error)for(const x of(c.data||[])){const m=monthly[Number(x.month)-1];if(!m||m.days.size)continue;m.hht=num(x.hours_worked);m.average=x.workers==null?null:num(x.workers);m.maximum=m.average;m.if=m.hht?m.computable*200000/m.hht:null;m.ig=m.hht?m.lost*200000/m.hht:null;m.ia=m.hht?m.if*m.ig/200:null}
  box.innerHTML=render(monthly,year);
- if((a.data||[]).length===10000||(b.data||[]).length===10000)box.insertAdjacentHTML('beforeend','<p style="color:#b42338">Advertencia: límite de 10 000 registros alcanzado; revisar paginación.</p>');
+ if((a.data||[]).length===10000||(b.data||[]).length===10000)box.insertAdjacentHTML('beforeend','<p class="muted">Aviso: se alcanzó el límite de registros consultados. Revisar paginación.</p>');
 };
+
 })();</script><script src="ssoma-master-documents.js"></script><script src="ssoma-inspections.js"></script><script src="ssoma-access.js"></script><script>
 'use strict';
 const $=id=>document.getElementById(id), cfg=window.SSOMA_CONFIG||{};
