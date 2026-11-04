@@ -77,7 +77,18 @@ function workerDocumentsView(id){
   if(data.issue_date&&data.expiry_date&&data.expiry_date<data.issue_date){toast('El vencimiento no puede ser anterior a la emisión',true);btn.disabled=false;return;}
   try{
    const res=await db.from('sst_worker_documents').upsert({owner_id:session.user.id,person_id:p.id,document_type:form.dataset.documentKind,...data},{onConflict:'person_id,document_type'});check(res.error);
-   await load();toast('Documento actualizado correctamente');
+   const kind=form.dataset.documentKind;
+   const isConformant=!!(data.expiry_date&&data.expiry_date>=isoToday()&&(kind!=='EMO'||data.fitness_status==='APTO'));
+   let exceptionClosed=false;
+   if(isConformant&&['EMO','SCTR_SALUD','SCTR_PENSION'].includes(kind)){
+    const close=await db.from('ssoma_document_exceptions').update({revoked_at:new Date().toISOString()}).eq('person_id',p.id).eq('document_type',kind).is('revoked_at',null);
+    if(close.error)toast('Documento registrado, pero no se pudo cerrar la excepción: '+close.error.message,true);
+    else exceptionClosed=true;
+   }
+   await load();await refreshExceptions();
+   const current=state.personnel.find(x=>x.id===p.id);
+   const verdict=current?pilotEligibility(current):{name:'PENDIENTE'};
+   toast('Documento actualizado. '+(exceptionClosed?'Excepción cerrada. ':'')+'Estado SST: '+verdict.name);
   }catch(err){toast('No se pudo guardar: '+errorMessage(err),true)}finally{btn.disabled=false}
  }));
 }
