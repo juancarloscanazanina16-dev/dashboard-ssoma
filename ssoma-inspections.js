@@ -80,5 +80,7 @@ function attachExecutiveTheme(){if(document.querySelector('link[href="ssoma-refe
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',attachExecutiveTheme);else attachExecutiveTheme();
 function attachGerenciaPlus(){if(window.__ssomaGerenciaPlus)return;window.__ssomaGerenciaPlus=true;const link=document.createElement('link');link.rel='stylesheet';link.href='ssoma-gerencia-plus.css';document.head.appendChild(link);const script=document.createElement('script');script.src='ssoma-gerencia-plus.js';document.head.appendChild(script)}
 /* Panel complementario desactivado: indicadores consolidados en una sola vista. */
+function loadCompactGerencia(){if(document.querySelector('link[href="ssoma-gerencia-compact.css"]'))return;const l=document.createElement('link');l.rel='stylesheet';l.href='ssoma-gerencia-compact.css';document.head.appendChild(l)}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',loadCompactGerencia);else loadCompactGerencia();
 window.ssomaInspections={page};
 })();
