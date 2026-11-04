@@ -17,17 +17,19 @@ function analyze(state){
   const approval=auth.filter(a=>a.person_id===p.id).sort((a,b)=>String(b.decided_at).localeCompare(String(a.decided_at)))[0];
   const authorized=approval?.decision==='HABILITADO'&&(!last?.created_at||new Date(approval.decided_at)>=new Date(last.created_at));
   const eligible=induction&&authorized&&req.every(r=>r.ok);
-  return {p,req,induction,authorized,eligible,alerts:req.filter(r=>r.days===null||r.days<=15),contractor:state.contractors.find(c=>c.id===p.contractor_id)?.name||'Sin contratista'};
+  const blocked=req.some(r=>r.days!==null&&r.days<0)||(req.find(r=>r.kind==='EMO')?.doc?.fitness_status==='NO_APTO')||last?.result==='Desaprobado'||approval?.decision==='NO HABILITADO';
+  const stage=eligible?'HABILITADO':blocked?'NO HABILITADO':'PENDIENTE';
+  return {p,req,induction,authorized,eligible,stage,alerts:req.filter(r=>r.days===null||r.days<=15),contractor:state.contractors.find(c=>c.id===p.contractor_id)?.name||'Sin contratista'};
  });
  return {now,people};
 }
 function page(state){
  const {now,people}=analyze(state);
- const rows=state.contractors.map(c=>{const ps=people.filter(x=>x.p.contractor_id===c.id),enabled=ps.filter(x=>x.eligible).length,issues=ps.reduce((n,x)=>n+x.alerts.length,0);return {name:c.name,total:ps.length,enabled,issues,rate:ps.length?Math.round(enabled/ps.length*100):0}}).sort((a,b)=>a.rate-b.rate||b.total-a.total);
+ const rows=state.contractors.map(c=>{const ps=people.filter(x=>x.p.contractor_id===c.id),enabled=ps.filter(x=>x.eligible).length,issues=ps.reduce((n,x)=>n+x.alerts.length,0);return {name:c.name,total:ps.length,enabled,issues,rate:ps.length?Math.round(enabled/ps.length*100):0}}).filter(r=>r.total>0).sort((a,b)=>a.rate-b.rate||b.total-a.total);
  const alerts=people.flatMap(x=>x.alerts.map(a=>({...a,name:x.p.full_name,contractor:x.contractor}))).sort((a,b)=>(a.days??-999)-(b.days??-999));
  const soon=alerts.filter(x=>x.days!==null&&x.days>=0&&x.days<=15).length;
  const expired=alerts.filter(x=>x.days===null||x.days<0).length;
- const cards=[['Trabajadores activos',people.length],['Habilitados',people.filter(x=>x.eligible).length],['Pendientes / vencidos',expired],['Vencen en 15 días',soon]];
+ const cards=[['Trabajadores activos',people.length],['Habilitados',people.filter(x=>x.eligible).length],['Pendientes de revisión',people.filter(x=>x.stage==='PENDIENTE').length],['No habilitados',people.filter(x=>x.stage==='NO HABILITADO').length],['Alertas críticas',expired],['Vencen en 15 días',soon]];
  return '<div class="hero-v2"><div><h2>Gestión ejecutiva SSOMA</h2><p>Cumplimiento por contratista · alertas documentales · reportes</p></div></div>'+
  '<div class="alerts-v2">'+cards.map(([label,n])=>'<div class="alert-v2"><strong>'+n+'</strong><small>'+esc(label)+'</small></div>').join('')+'</div>'+
  '<div class="card section"><h3>Cumplimiento documental y habilitación por contratista</h3><p class="muted">Se exige inducción aprobada, autorización SSOMA y DNI, EMO, SCTR Salud y SCTR Pensión vigentes. El resultado es orientativo y no sustituye la verificación operativa.</p><div class="tablewrap"><table><thead><tr><th>Contratista</th><th>Personal</th><th>Habilitados</th><th>Cumplimiento</th><th>Observaciones</th></tr></thead><tbody>'+rows.map(r=>'<tr><td><b>'+esc(r.name)+'</b></td><td>'+r.total+'</td><td>'+r.enabled+'</td><td><div style="min-width:110px"><b>'+r.rate+'%</b><div style="height:7px;background:#e8eef3;border-radius:9px"><div style="height:7px;width:'+r.rate+'%;background:'+(r.rate>=90?'#00947b':r.rate>=70?'#e3a43a':'#c65a52')+';border-radius:9px"></div></div></div></td><td>'+r.issues+'</td></tr>').join('')+'</tbody></table></div></div>'+
@@ -37,9 +39,9 @@ function page(state){
 function csv(state){
  const {people}=analyze(state);
  const data=[['Contratista','DNI','Trabajador','Inducción aprobada','Autorización SSOMA','DNI vigente','EMO vigente','SCTR Salud vigente','SCTR Pensión vigente','Habilitación']];
- for(const x of people){const ok=k=>x.req.find(r=>r.kind===k)?.ok?'Sí':'No';data.push([x.contractor,x.p.dni,x.p.full_name,x.induction?'Sí':'No',x.authorized?'Sí':'No',ok('DNI'),ok('EMO'),ok('SCTR_SALUD'),ok('SCTR_PENSION'),x.eligible?'HABILITADO':'NO HABILITADO'])}
+ for(const x of people){const ok=k=>x.req.find(r=>r.kind===k)?.ok?'Sí':'No';data.push([x.contractor,x.p.dni,x.p.full_name,x.induction?'Sí':'No',x.authorized?'Sí':'No',ok('DNI'),ok('EMO'),ok('SCTR_SALUD'),ok('SCTR_PENSION'),x.stage])}
  const content='\ufeff'+data.map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(';')).join('\r\n');
- const url=URL.createObjectURL(new Blob([content],{type:'text/csv;charset=utf-8'})),a=document.createElement('a');a.href=url;a.download='SSOMA_Consolidado_'+today()+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);
+ const url=URL.createObjectURL(new Blob([content],{type:'text/csv;charset=utf-8'})),a=document.createElement('a');a.href=url;a.download='SSOMA_Consolidado_'+today()+'.csv';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
 }
 function printReport(state){
  const w=window.open('','_blank');if(!w)throw Error('Permita ventanas emergentes para generar el informe');
