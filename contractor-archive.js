@@ -4,6 +4,54 @@ const CATS=[['SCTR_SALUD','SCTR Salud'],['SCTR_PENSION','SCTR Pensión'],['FICHA
 const ctx=()=>window.sctrContext;
 const safe=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
 let contractorId='',records=[];
+
+const norm=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();
+function isoDate(raw){
+ const m=String(raw).match(/(\d{1,2})[\/.-](\d{1,2})[\/.-](20\d{2})/);
+ if(!m)return null;
+ const d=new Date(Date.UTC(+m[3],+m[2]-1,+m[1]));
+ return d.getUTCDate()===+m[1]&&d.getUTCMonth()===+m[2]-1&&d.getUTCFullYear()===+m[3]?m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0'):null;
+}
+async function readPdf(file){
+ if(!window.pdfjsLib)await new Promise((ok,fail)=>{const script=document.createElement('script');script.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';script.onload=ok;script.onerror=()=>fail(Error('No se pudo cargar el lector PDF'));document.head.appendChild(script)});
+ window.pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+ const pdf=await window.pdfjsLib.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise;
+ if(pdf.numPages>100)throw Error('Documento de más de 100 páginas; divida el archivo');
+ const pages=[];
+ for(let i=1;i<=pdf.numPages;i++){const page=await pdf.getPage(i),content=await page.getTextContent();pages.push(content.items.map(x=>x.str).join(' '))}
+ return pages.join('\n');
+}
+function extractPolicy(text,category){
+ const x=norm(text);
+ const entities=[['Sanitas Perú S.A. EPS',/\bSANITAS\b/,'SCTR_SALUD'],['Crecer Seguros S.A.',/\bCRECER SEGUROS\b/,'SCTR_PENSION'],['Rímac Seguros',/\bRIMAC\b/,null],['La Positiva',/\bLA POSITIVA\b/,null],['Pacífico Seguros',/\bPACIFICO\b/,null],['MAPFRE',/\bMAPFRE\b/,null],['Interseguro',/\bINTERSEGURO\b/,null],['Protecta Security',/\bPROTECTA\b/,null],['EsSalud',/\bESSALUD\b/,'SCTR_SALUD']];
+ const matching=entities.filter(([name,rx,kind])=>rx.test(x)&&(!kind||kind===category));
+ const preferred=matching.filter(v=>v[2]===category);
+ const insurer=(preferred.length===1?preferred:matching.length===1?matching:[]).map(v=>v[0])[0]||'';
+ // No escoger fechas aisladas: deben encontrarse juntas en un contexto de cobertura.
+ const lines=text.split(/\n/).flatMap(v=>v.match(/(?:VIGENCIA|COBERTURA|PERIODO|PERÍODO|DESDE|HASTA|INICIO|FIN|VENCIMIENTO).{0,200}/gi)||[]);
+ const ranges=[];
+ for(const line of lines){
+  const dates=[...line.matchAll(/\b\d{1,2}[\/.-]\d{1,2}[\/.-]20\d{2}\b/g)].map(m=>isoDate(m[0])).filter(Boolean);
+  if(dates.length>=2&&dates[0]<=dates[1])ranges.push({from:dates[0],to:dates[1]});
+ }
+ ranges.sort((a,b)=>b.to.localeCompare(a.to)||b.from.localeCompare(a.from));
+ return {insurer,from:ranges[0]?.from||'',to:ranges[0]?.to||'',ambiguous:matching.length>1&&!preferred.length,scanned:text.replace(/\s/g,'').length<50};
+}
+async function autoFill(e){
+ const input=e.currentTarget,form=input.closest('form'),cat=form.dataset.archiveUpload,file=input.files?.[0];
+ if(!file||cat==='FICHA_ATENCION_MEDICA')return;
+ const note=form.querySelector('[data-pdf-note]');
+ if(file.size>15*1024*1024){note.textContent='Archivo supera 15 MB';return}
+ note.textContent='Analizando aseguradora y vigencia del PDF...';
+ try{
+  const data=extractPolicy(await readPdf(file),cat);
+  form.elements.insurer.value=data.insurer;
+  form.elements.coverage_start.value=data.from;
+  form.elements.coverage_end.value=data.to;
+  note.textContent=data.scanned?'PDF escaneado sin texto: complete los campos manualmente.':data.ambiguous?'Se detectaron varias aseguradoras: confirme la correspondiente a esta cobertura.':!data.insurer||!data.from||!data.to?'Extracción parcial: revise y complete los campos antes de guardar.':'Datos sugeridos automáticamente. Revise aseguradora y fechas antes de guardar.';
+ }catch(err){note.textContent='No se pudo analizar el PDF: '+err.message+'. Complete los datos manualmente.'}
+}
+
 function nameOf(id){return ctx().state.contractors.find(c=>c.id===id)?.name||'Subcontratista'}
 async function fetchFiles(){
  const q=await ctx().db.from('sst_contractor_files').select('*').eq('contractor_id',contractorId).order('uploaded_at',{ascending:false}).limit(500);
@@ -11,9 +59,9 @@ async function fetchFiles(){
 }
 function view(){
  const root=document.getElementById('contractorArchive');if(!root)return;
- root.innerHTML='<div class="hero-v2"><div><h2>Expedientes documentales</h2><p>Documentos originales por subcontratista · almacenamiento privado</p></div></div><div class="card section"><h3>Seleccionar subcontratista</h3><select id="archiveContractor"><option value="">Seleccione una subcontratista</option>'+ctx().state.contractors.map(c=>'<option value="'+safe(c.id)+'" '+(c.id===contractorId?'selected':'')+'>'+safe(c.name)+'</option>').join('')+'</select></div>'+(contractorId?'<div class="card section"><h3>📁 '+safe(nameOf(contractorId))+'</h3><p class="muted">Los documentos son privados y solo se pueden consultar desde una sesión autorizada.</p>'+CATS.map(([key,label])=>'<div class="card" style="margin:14px 0;padding:16px"><div class="flex between" style="gap:8px;flex-wrap:wrap"><h3>📁 '+safe(label)+'</h3><span class="muted">'+records.filter(r=>r.category===key).length+' archivo(s)</span></div><form data-archive-upload="'+key+'" style="margin:10px 0"><div class="formgrid"><label>Archivo PDF<input name="file" type="file" accept="application/pdf,.pdf" required></label>'+(key!=='FICHA_ATENCION_MEDICA'?'<label>Aseguradora / EPS<input name="insurer" maxlength="120" placeholder="Opcional"></label><label>Inicio de cobertura<input type="date" name="coverage_start"></label><label>Fin de cobertura<input type="date" name="coverage_end"></label>':'<label style="display:flex;align-items:center;gap:8px"><input type="checkbox" name="signed"> Firma de Gerencia General verificada por SSOMA</label>')+'</div><button class="btn green small" type="submit">↑ Guardar PDF en carpeta</button></form><div class="tablewrap"><table><thead><tr><th>Archivo</th><th>Registro</th><th>Detalle</th><th>Acción</th></tr></thead><tbody>'+records.filter(r=>r.category===key).map(r=>'<tr><td>'+safe(r.original_name)+'</td><td>'+safe(new Date(r.uploaded_at).toLocaleDateString('es-PE'))+'</td><td>'+safe(key==='FICHA_ATENCION_MEDICA'?(r.manager_signature_verified?'Firma verificada':'Firma pendiente de verificación'):[r.insurer,r.coverage_start,r.coverage_end].filter(Boolean).join(' · ')||'Sin metadatos')+'</td><td><button type="button" class="btn light small" data-archive-open="'+safe(r.id)+'">Ver / descargar</button></td></tr>').join('')+(records.some(r=>r.category===key)?'':'<tr><td colspan="4">Carpeta sin documentos</td></tr>')+'</tbody></table></div></div>').join('')+'</div>':'');
+ root.innerHTML='<div class="hero-v2"><div><h2>Expedientes documentales</h2><p>Documentos originales por subcontratista · almacenamiento privado</p></div></div><div class="card section"><h3>Seleccionar subcontratista</h3><select id="archiveContractor"><option value="">Seleccione una subcontratista</option>'+ctx().state.contractors.map(c=>'<option value="'+safe(c.id)+'" '+(c.id===contractorId?'selected':'')+'>'+safe(c.name)+'</option>').join('')+'</select></div>'+(contractorId?'<div class="card section"><h3>📁 '+safe(nameOf(contractorId))+'</h3><p class="muted">Los documentos son privados y solo se pueden consultar desde una sesión autorizada.</p>'+CATS.map(([key,label])=>'<div class="card" style="margin:14px 0;padding:16px"><div class="flex between" style="gap:8px;flex-wrap:wrap"><h3>📁 '+safe(label)+'</h3><span class="muted">'+records.filter(r=>r.category===key).length+' archivo(s)</span></div><form data-archive-upload="'+key+'" style="margin:10px 0"><div class="formgrid"><label>Archivo PDF<input name="file" type="file" accept="application/pdf,.pdf" required></label>'+(key!=='FICHA_ATENCION_MEDICA'?'<label>Aseguradora / EPS<input name="insurer" maxlength="120" placeholder="Opcional"></label><label>Inicio de cobertura<input type="date" name="coverage_start"></label><label>Fin de cobertura<input type="date" name="coverage_end"></label>':'<label style="display:flex;align-items:center;gap:8px"><input type="checkbox" name="signed"> Firma de Gerencia General verificada por SSOMA</label>')+'</div><p class="muted" data-pdf-note style="font-size:12px">'+(key==='FICHA_ATENCION_MEDICA'?'Verifique la firma de Gerencia General antes de marcar la casilla.':'Al seleccionar el PDF se intentará completar automáticamente la aseguradora y la vigencia.')+'</p><button class="btn green small" type="submit">↑ Guardar PDF en carpeta</button></form><div class="tablewrap"><table><thead><tr><th>Archivo</th><th>Registro</th><th>Detalle</th><th>Acción</th></tr></thead><tbody>'+records.filter(r=>r.category===key).map(r=>'<tr><td>'+safe(r.original_name)+'</td><td>'+safe(new Date(r.uploaded_at).toLocaleDateString('es-PE'))+'</td><td>'+safe(key==='FICHA_ATENCION_MEDICA'?(r.manager_signature_verified?'Firma verificada':'Firma pendiente de verificación'):[r.insurer,r.coverage_start,r.coverage_end].filter(Boolean).join(' · ')||'Sin metadatos')+'</td><td><button type="button" class="btn light small" data-archive-open="'+safe(r.id)+'">Ver / descargar</button></td></tr>').join('')+(records.some(r=>r.category===key)?'':'<tr><td colspan="4">Carpeta sin documentos</td></tr>')+'</tbody></table></div></div>').join('')+'</div>':'');
  root.querySelector('#archiveContractor').onchange=async e=>{contractorId=e.target.value;await reload()};
- root.querySelectorAll('[data-archive-upload]').forEach(f=>f.onsubmit=upload);
+ root.querySelectorAll('[data-archive-upload]').forEach(f=>{f.onsubmit=upload;f.elements.file.addEventListener('change',autoFill)});
  root.querySelectorAll('[data-archive-open]').forEach(b=>b.onclick=()=>openFile(b.dataset.archiveOpen));
 }
 async function reload(){try{records=[];if(contractorId)await fetchFiles();view()}catch(e){ctx().toast('No se pudo consultar expediente: '+e.message,true)}}
