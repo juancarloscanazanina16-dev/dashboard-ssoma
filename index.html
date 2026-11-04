@@ -114,6 +114,14 @@ function pilotEligibility(p){
  if(t.result!=='Aprobado'||t.score===null||t.score===undefined)return yellow('Nota SST pendiente de registro o aprobación');
  if(!t.validity_until)return yellow('Inducción sin vencimiento definido');
  if(t.validity_until<isoToday())return red('Inducción vencida');
+ const labels={DNI:'DNI',EMO:'EMO',SCTR_SALUD:'SCTR Salud',SCTR_PENSION:'SCTR Pensión'};
+ for(const [key,label] of Object.entries(labels)){
+ const doc=(state.documents||[]).find(d=>d.person_id===p.id&&d.document_type===key);
+ if(!doc?.expiry_date)return yellow(label+' pendiente de registro o validación');
+ if(doc.expiry_date<isoToday())return red(label+' vencido');
+ if(key==='EMO'&&doc.fitness_status==='NO_APTO')return red('EMO: no apto');
+ if(key==='EMO'&&doc.fitness_status!=='APTO')return yellow('EMO pendiente de aptitud compatible');
+ }
  if(!decision)return yellow('Pendiente de aprobación expresa de Jefatura SSOMA');
  if(decision.decision==='NO HABILITADO')return red('Habilitación rechazada o suspendida por SSOMA');
  if(decision.decision!=='HABILITADO')return yellow('Documentación o validación SST pendiente');
@@ -134,6 +142,8 @@ async function habilitationView(id){
  e.preventDefault();const form=e.currentTarget,decision=form.elements.decision.value,reason=form.elements.reason.value.trim();
  if(!session?.user)return toast('Inicia sesión para autorizar',true);
  if(decision==='HABILITADO'){
+ const missing=['DNI','EMO','SCTR_SALUD','SCTR_PENSION'].filter(k=>{const d=(state.documents||[]).find(x=>x.person_id===p.id&&x.document_type===k);return !d?.expiry_date||d.expiry_date<isoToday()||(k==='EMO'&&d.fitness_status!=='APTO')});
+ if(missing.length)return toast('No se puede habilitar: requisitos pendientes o vencidos: '+missing.join(', '),true);
  const t=state.trainings.filter(x=>x.person_id===p.id).sort((a,b)=>b.training_date.localeCompare(a.training_date))[0];
  if(!p.active||!t||t.result!=='Aprobado'||t.score==null||Number(t.score)<Number(t.passing_score??14)||!t.validity_until||t.validity_until<isoToday())return toast('No se puede habilitar: falta evaluación aprobada y vigente',true);
  }
@@ -161,9 +171,15 @@ async function showPublicCard(){
  document.body.appendChild(overlay);try{
  const publicDb=window.supabase.createClient(cfg.supabaseUrl,cfg.supabaseAnonKey,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false},global:{headers:{'X-Client-Info':'ssoma-public-qr'}}});const res=await publicDb.from('public_card_status').select('status,training_valid_until,public_card_enabled,full_name,job_title,contractor_name,photo_data').eq('worker_id',id).maybeSingle();if(res.error){console.error('QR consulta:',res.error);throw res.error;}
  const data=res.data;const target=overlay.querySelector('#publicVerifyResult');
+ let verifiedStatus='NO HABILITADO';
+ try{
+ const verified=await publicDb.rpc('sst_verify_status',{wid:id});
+ if(verified.error)throw verified.error;
+ verifiedStatus=verified.data==='HABILITADO'?'HABILITADO':verified.data==='PENDIENTE'?'PENDIENTE':'NO HABILITADO';
+ }catch(err){console.error('QR validación de requisitos:',err);target.innerHTML='<b style="color:#b42338">Verificación no disponible</b><p>No autorice el ingreso sin confirmación.</p>';return true;}
  if(!data){target.innerHTML='<b style="color:#a43c42">Credencial no disponible</b><p>No se encontró un registro público verificable.</p>';return true}
  const expired=data.training_valid_until&&data.training_valid_until<isoToday();
- const status=expired?'VENCIDO':data.status==='HABILITADO'?'HABILITADO':data.status==='NO HABILITADO'?'NO HABILITADO':'PENDIENTE';
+ const status=expired?'VENCIDO':verifiedStatus;
  const color=status==='HABILITADO'?'#087d71':status==='PENDIENTE'?'#a56a00':'#b42338';
  const identity=data.public_card_enabled?'<div style="display:grid;justify-items:center;gap:6px;margin-bottom:17px">'+(data.photo_data?'<img alt="Foto del trabajador" src="'+escapeHtml(data.photo_data)+'" style="width:95px;height:112px;object-fit:cover;border-radius:10px">':'')+'<strong style="color:#15354b;font-size:16px">'+escapeHtml(data.full_name||'')+'</strong><span style="font-size:12px;color:#536979">'+escapeHtml(data.job_title||'')+'</span><span style="font-size:12px;color:#536979">'+escapeHtml(data.contractor_name||'')+'</span></div>':'';target.innerHTML=identity+'<div style="font-size:12px;color:#637787;margin-bottom:12px">RESULTADO DE LA VERIFICACIÓN</div><div style="padding:15px;border-radius:12px;background:'+color+'16;color:'+color+';font-size:22px;font-weight:850">'+status+'</div><p style="margin:20px 0 6px;font-size:13px;color:#536979">Vigencia de inducción SST</p><strong style="font-size:20px;color:#15354b">'+(data.training_valid_until?dateShort(data.training_valid_until):'No registrada')+'</strong><p style="font-size:11px;color:#64748b;margin-top:18px">Consulta realizada: '+new Date().toLocaleString('es-PE')+'</p>';
  }catch(err){const code=String(err?.code||'ERROR').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,30);overlay.querySelector('#publicVerifyResult').textContent='No fue posible verificar el estado. Código: '+code+'. No autorice el ingreso sin confirmación.';console.error('Verificación SST:',err)}return true;
