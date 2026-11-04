@@ -16,7 +16,7 @@ const root=()=>document.getElementById('masterDocumentsRoot');
 const msg=(s,bad=false)=>ctx?.toast?.(s,bad);
 function page(c){ctx=c;system=c.initialSystem||'TODOS';query='';docs=[];setTimeout(refresh,0);return `<section id="masterDocumentsRoot" class="md-root">
 <div class="md-hero"><div><span class="md-eyebrow">SSOMA CONTROL 2.0 · Gestión integrada</span><h2>Lista Maestra Documental</h2><p>Biblioteca central SGSST y SGA · Codificación y versiones automáticas</p></div><div class="md-hero-icon">▤</div></div>
-<div class="md-grid"><div class="md-tile"><strong id="md-total">—</strong><span>Versiones registradas</span></div><div class="md-tile"><strong id="md-sst">—</strong><span>SGSST</span></div><div class="md-tile"><strong id="md-sga">—</strong><span>SGA</span></div><div class="md-tile"><strong id="md-pending">—</strong><span>Pendientes de aprobación</span></div></div>
+<div class="md-tabs" role="tablist" aria-label="Sistema documental"><button type="button" data-md-tab="TODOS" class="md-tab active">▤ Lista Maestra</button><button type="button" data-md-tab="SGSST" class="md-tab">▣ SGSST · Permisos de Trabajo</button><button type="button" data-md-tab="SGA" class="md-tab">♧ SGA · Gestión Ambiental</button></div><div class="md-grid"><div class="md-tile"><strong id="md-total">—</strong><span>Versiones registradas</span></div><div class="md-tile"><strong id="md-sst">—</strong><span>SGSST</span></div><div class="md-tile"><strong id="md-sga">—</strong><span>SGA</span></div><div class="md-tile"><strong id="md-pending">—</strong><span>Pendientes de aprobación</span></div></div>
 <div class="card md-panel"><div class="md-panel-title"><div><h3>Cargar documentos PDF</h3><p class="muted">El nombre codificado genera automáticamente el registro. Hasta 20 MB por archivo.</p></div></div>
 <div class="md-upload-controls"><label>Sistema documental<select id="md-upload-system"><option value="SGSST">SGSST · Seguridad y Salud</option><option value="SGA">SGA · Gestión Ambiental</option></select></label><label class="md-filelabel">Seleccionar PDF<input id="md-file" type="file" accept=".pdf,application/pdf" multiple></label><button type="button" id="md-upload" class="btn green">↑ Subir y registrar</button></div>
 <div id="md-preview" class="md-preview muted">Ejemplo: SGSST-ATS-001_Analisis_de_trabajo_seguro_V01.pdf</div><p class="muted">Los documentos cargados quedan PENDIENTES hasta su revisión y aprobación. No se publican automáticamente como vigentes.</p></div>
@@ -35,7 +35,7 @@ function draw(){
  const n=id=>document.getElementById(id);
  n('md-total').textContent=docs.length;n('md-sst').textContent=docs.filter(d=>d.system_code==='SGSST').length;n('md-sga').textContent=docs.filter(d=>d.system_code==='SGA').length;n('md-pending').textContent=docs.filter(d=>d.status==='PENDIENTE').length;
  folders();
- const type=n('md-type').value;
+ document.querySelectorAll('[data-md-tab]').forEach(b=>{b.classList.toggle('active',b.dataset.mdTab===system);b.setAttribute('aria-selected',String(b.dataset.mdTab===system));});const type=n('md-type').value;
  const rows=docs.filter(d=>(system==='TODOS'||d.system_code===system)&&(type==='TODOS'||type===d.system_code+':'+d.document_type)&&[d.document_code,d.document_name,d.document_type,d.system_code,'V'+String(d.version_number).padStart(2,'0')].join(' ').toLowerCase().includes(query.toLowerCase()));
  n('md-rows').innerHTML=rows.length?rows.map(d=>`<tr><td><span class="md-system ${d.system_code==='SGA'?'env':''}">${esc(d.system_code)}</span><br><small>${esc(TYPES[d.system_code]?.[d.document_type]||d.document_type)}</small></td><td><b>${esc(d.document_code)}</b></td><td>${esc(d.document_name)}</td><td>V${String(d.version_number).padStart(2,'0')}</td><td><span class="pill ${d.status==='VIGENTE'?'':d.status==='PENDIENTE'?'yellow':'red'}">${esc(d.status)}</span></td><td>${new Date(d.uploaded_at).toLocaleDateString('es-PE')}</td><td><button type="button" class="btn light small" data-md-open="${esc(d.id)}">Ver PDF</button></td></tr>`).join(''):'<tr><td colspan="7" class="muted">No se encontraron documentos.</td></tr>';
 }
@@ -86,7 +86,7 @@ async function openFile(id){
 document.addEventListener('click',e=>{
  if(!root())return;
  const b=e.target.closest('button');if(!b)return;
- if(b.id==='md-upload')upload();
+ if(b.dataset.mdTab){system=b.dataset.mdTab;document.getElementById('md-system').value=system;draw();}if(b.id==='md-upload')upload();
  if(b.id==='md-refresh')refresh();
  if(b.dataset.mdOpen)openFile(b.dataset.mdOpen);
  if(b.dataset.mdFolder){const [s]=b.dataset.mdFolder.split(':');system=s;document.getElementById('md-system').value=s;folders();document.getElementById('md-type').value=b.dataset.mdFolder;draw();}
