@@ -1,7 +1,8 @@
 (function(){
 'use strict';
 const library='https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js';
-let libReady;
+let libReady,pdfReady;
+function ensurePdfReader(){if(!pdfReady)pdfReady=(async()=>{if(!window.pdfjsLib)await new Promise((resolve,reject)=>{const script=document.createElement('script');script.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';script.onload=resolve;script.onerror=()=>reject(Error('No se pudo cargar el lector PDF. Compruebe su conexión a internet.'));document.head.appendChild(script)});window.pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';return window.pdfjsLib})().catch(e=>{pdfReady=null;throw e});return pdfReady}
 function ensureLib(){if(!libReady)libReady=new Promise((resolve,reject)=>{if(window.PDFLib)return resolve();const s=document.createElement('script');s.src=library;s.onload=resolve;s.onerror=()=>reject(Error('No se pudo cargar el editor PDF'));document.head.appendChild(s)});return libReady}
 function digits(s){return String(s||'').replace(/\D/g,'')}
 function normalize(s){return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9 ]/g,' ').replace(/\s+/g,' ').trim()}
@@ -9,10 +10,11 @@ function matchDni(text,dni){return new RegExp('(^|\\D)'+dni+'(?!\\d)').test(text
 async function highlight(blob,person,onProgress){
  const dni=digits(person.dni);
  if(dni.length!==8)throw Error('El DNI del trabajador debe tener 8 dígitos');
+ onProgress?.('Iniciando lector PDF y motor de resaltado...');
+ const pdfReader=await ensurePdfReader();
  await ensureLib();
- if(!window.pdfjsLib)throw Error('No está disponible el lector PDF');
  const bytes=new Uint8Array(await blob.arrayBuffer());
- const src=await window.pdfjsLib.getDocument({data:bytes}).promise;
+ const src=await pdfReader.getDocument({data:bytes.slice()}).promise;
  const output=await window.PDFLib.PDFDocument.load(bytes,{ignoreEncryption:false});
  if(src.numPages!==output.getPageCount())throw Error('El número de páginas no coincide');
  const candidates=[];
