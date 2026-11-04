@@ -24,22 +24,22 @@ function compute(daily,events,year){
   const counts=[...x.days.values()];
   x.average=counts.length?counts.reduce((a,b)=>a+b,0)/counts.length:null;
   x.maximum=counts.length?Math.max(...counts):null;
-  x.if=x.hht>0?x.computable*1000000/x.hht:null;
-  x.ig=x.hht>0?x.lost*1000000/x.hht:null;
-  x.ia=x.hht>0?x.if*x.ig/1000:null;
+  x.if=x.hht>0?x.computable*200000/x.hht:null;
+  x.ig=x.hht>0?x.lost*200000/x.hht:null;
+  x.ia=x.hht>0?x.if*x.ig/200:null;
  });
  return monthly;
 }
 function render(monthly,year){
  const totalHht=monthly.reduce((n,m)=>n+m.hht,0),accidents=monthly.reduce((n,m)=>n+m.accidents,0),computable=monthly.reduce((n,m)=>n+m.computable,0),lost=monthly.reduce((n,m)=>n+m.lost,0);
  const counts=monthly.flatMap(m=>[...m.days.values()]),average=counts.length?counts.reduce((a,b)=>a+b,0)/counts.length:null,maximum=counts.length?Math.max(...counts):null;
- const ifv=totalHht?computable*1000000/totalHht:null,ig=totalHht?lost*1000000/totalHht:null,iav=totalHht?ifv*ig/1000:null;
+ const ifv=totalHht?computable*200000/totalHht:null,ig=totalHht?lost*200000/totalHht:null,iav=totalHht?ifv*ig/200:null;
  const value=n=>n===null?'—':fmt(n);
  const row=m=>'<tr><td>'+months[m.month-1]+'</td><td>'+m.accidents+'</td><td>'+m.computable+'</td><td>'+m.lost+'</td><td>'+(m.average===null?'—':fmt(m.average,1))+'</td><td>'+(m.maximum===null?'—':fmt(m.maximum,0))+'</td><td>'+fmt(m.hht,0)+'</td><td>'+value(m.if)+'</td><td>'+value(m.ig)+'</td><td>'+value(m.ia)+'</td></tr>';
  return '<h3 style="margin:0 0 12px;color:#15354b">Indicadores de seguridad · '+year+'</h3>'+
  '<div class="kpis"><div class="card"><b>'+fmt(totalHht,0)+'</b><p>HHT acumuladas</p></div><div class="card"><b>'+(average===null?'—':fmt(average,1))+'</b><p>Trabajadores promedio</p></div><div class="card"><b>'+(maximum===null?'—':fmt(maximum,0))+'</b><p>Dotación máxima</p></div><div class="card"><b>'+value(ifv)+'</b><p>IF</p></div><div class="card"><b>'+value(ig)+'</b><p>IG</p></div><div class="card"><b>'+value(iav)+'</b><p>IA</p></div></div>'+
  '<div class="tablewrap" style="margin-top:14px"><table><thead><tr><th>Mes</th><th>Accidentes</th><th>Computables</th><th>Días perdidos</th><th>Promedio</th><th>Máximo</th><th>HHT</th><th>IF</th><th>IG</th><th>IA</th></tr></thead><tbody>'+monthly.map(row).join('')+'</tbody></table></div>'+
- '<p class="muted" style="margin-top:12px">Acumulado anual: '+computable+' accidentes computables · '+lost+' días perdidos · '+fmt(totalHht,0)+' HHT. IF '+value(ifv)+' · IG '+value(ig)+' · IA '+value(iav)+'. Dotación promedio sobre '+counts.length+' jornadas registradas. HHT = personal × horas por grupo. IF e IG por millón de HHT; IA = IF × IG / 1000. Sin HHT se muestra —.</p>'+
+ '<p class="muted" style="margin-top:12px">Acumulado anual: '+computable+' accidentes computables · '+lost+' días perdidos · '+fmt(totalHht,0)+' HHT. IF '+value(ifv)+' · IG '+value(ig)+' · IA '+value(iav)+'. Dotación promedio sobre '+counts.length+' jornadas registradas. HHT = personal × horas por grupo. IF e IG por 200 000 HHT; IA = IF × IG / 200. Sin HHT se muestra —.</p>'+
  '<p class="muted">Revisión SSOMA: la clasificación de accidentes computables y días perdidos debe validarse en los registros de eventos. Este panel no sustituye la investigación ni la aprobación del reporte oficial.</p>';
 }
 window.ssomaLiveHours=async function(db){
