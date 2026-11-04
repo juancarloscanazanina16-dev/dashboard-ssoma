@@ -100,7 +100,7 @@ function consolidatedAlertRows(){
  return state.personnel.filter(p=>p.active).map(p=>{const req=requirementSnapshot(p),elig=pilotEligibility(p),issues=req.filter(x=>x.status!=='VIGENTE'),urgent=req.some(x=>['VENCIDO','DESAPROBADO','NO APTO','RECHAZADO','VENCE HOY'].includes(x.status));return {p,req,elig,issues,urgent};}).sort((a,b)=>Number(b.urgent)-Number(a.urgent)||b.issues.length-a.issues.length||a.p.full_name.localeCompare(b.p.full_name));
 }
 function alertsPage(){
- const all=consolidatedAlertRows(),visible=all.filter(x=>(!filters.alertStatus||filters.alertStatus==='all')||(filters.alertStatus==='enabled'?x.elig.name==='HABILITADO':filters.alertStatus==='expired'?x.urgent:x.issues.length>0||x.elig.name!=='HABILITADO'));
+ const all=consolidatedAlertRows(),visible=all.filter(x=>filters.alertStatus==='all'||(filters.alertStatus==='enabled'?x.elig.name==='HABILITADO':filters.alertStatus==='expired'?x.urgent:(x.issues.length>0||x.elig.name!=='HABILITADO')));
  const enabled=all.filter(x=>x.elig.name==='HABILITADO').length,pending=all.filter(x=>x.elig.name==='PENDIENTE').length,blocked=all.filter(x=>x.elig.name==='NO HABILITADO').length,issues=all.reduce((n,x)=>n+x.issues.length,0);
  const rowHtml=visible.map(x=>{
  const p=x.p,details=x.req.map(r=>'<div style="display:flex;align-items:center;gap:10px;justify-content:space-between;padding:8px 0;border-bottom:1px solid #e8edf2"><span style="min-width:100px">'+escapeHtml(r.label)+'</span><span>'+pill(r.status,requirementTone(r.status))+'</span><span style="color:#607589;font-size:12px">'+dateShort(r.end)+'</span><button class="btn light small" data-'+r.action+'-person="'+p.id+'">'+(r.action==='documents'?'Actualizar':r.action==='retrain'?'Inducción':'Autorizar')+'</button></div>').join('');
