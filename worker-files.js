@@ -28,20 +28,34 @@ window.attachWorkerDocumentFolders=function(modal,p,ctx){
   async function refresh(){
    const res=await db.from('sst_worker_files').select('id,original_name,storage_path,uploaded_at,provider_name,issue_date,expiry_date').eq('person_id',p.id).eq('document_type',kind).order('uploaded_at',{ascending:false}).limit(100);
    if(res.error){note.textContent='No se pudieron consultar archivos: '+res.error.message;return}
-   container.querySelector('[data-file-count]').textContent=(res.data||[]).length+' PDF';
-   list.innerHTML=(res.data||[]).map(r=>'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:6px 0"><span style="flex:1;min-width:140px">'+H(r.original_name)+'</span><small>'+H(new Date(r.uploaded_at).toLocaleDateString('es-PE'))+'</small><button type="button" class="btn light small" data-view="'+H(r.id)+'">PDF original</button>'+(kind==='SCTR_SALUD'||kind==='SCTR_PENSION'?'<button type="button" class="btn green small" data-highlight="'+H(r.id)+'">🖍 PDF resaltado</button>':'')+'</div>').join('')||'<span class="muted">Sin documentos guardados</span>';
-   list.querySelectorAll('[data-view]').forEach(b=>b.onclick=async()=>{const r=res.data.find(x=>x.id===b.dataset.view),url=await db.storage.from(B).createSignedUrl(r.storage_path,120);if(url.error)return toast(url.error.message,true);window.open(url.data.signedUrl,'_blank','noopener,noreferrer')});
-   list.querySelectorAll('[data-highlight]').forEach(b=>b.onclick=async()=>{
-    const r=res.data.find(x=>x.id===b.dataset.highlight);if(!r)return;
+   const individual=(res.data||[]).map(r=>({...r,bucket:B,source:'Individual'}));
+   let company=[];
+   if(kind.startsWith('SCTR_')&&p.contractor_id){
+    const cr=await db.from('sst_contractor_files').select('id,original_name,storage_path,uploaded_at').eq('contractor_id',p.contractor_id).eq('category',kind).order('uploaded_at',{ascending:false}).limit(100);
+    if(cr.error){note.textContent='No se pudo consultar el expediente empresarial: '+cr.error.message}
+    else company=(cr.data||[]).map(r=>({...r,bucket:'sst-contractor-files',source:'Empresa · por verificar DNI'}));
+   }
+   const files=[...individual,...company];
+   container.querySelector('[data-file-count]').textContent=individual.length+' individual(es) · '+company.length+' empresa';
+   list.innerHTML='<div style="margin:8px 0;font-size:12px;color:#54657b">Documentos individuales y pólizas de la subcontratista. La existencia de una póliza empresarial no confirma que el trabajador figure como asegurado.</div>'+(files.map((r,i)=>'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0;padding:9px;border:1px solid #dbe5ef;border-radius:10px"><span style="flex:1;min-width:150px"><b>'+H(r.original_name)+'</b><br><small>'+H(r.source)+' · '+H(new Date(r.uploaded_at).toLocaleDateString('es-PE'))+'</small></span><button type="button" class="btn light small" data-view-index="'+i+'">PDF original</button>'+(kind.startsWith('SCTR_')?'<button type="button" class="btn green small" data-highlight-index="'+i+'">🖍 Descargar PDF resaltado</button>':'')+'</div>').join('')||'<p class="muted">Aún no existen PDF en la carpeta individual ni en la carpeta SCTR de la subcontratista. Adjunte un PDF o cargue una póliza empresarial para habilitar las descargas.</p>');
+   list.querySelectorAll('[data-view-index]').forEach(b=>b.onclick=async()=>{
+    const r=files[Number(b.dataset.viewIndex)],url=await db.storage.from(r.bucket).createSignedUrl(r.storage_path,120);
+    if(url.error)return toast(url.error.message,true);
+    window.open(url.data.signedUrl,'_blank','noopener,noreferrer');
+   });
+   list.querySelectorAll('[data-highlight-index]').forEach(b=>b.onclick=async()=>{
+    const r=files[Number(b.dataset.highlightIndex)];if(!r)return;
     b.disabled=true;
     try{
      note.textContent='Preparando descarga resaltada...';
-     const signed=await db.storage.from(B).createSignedUrl(r.storage_path,120);
+     const signed=await db.storage.from(r.bucket).createSignedUrl(r.storage_path,120);
      if(signed.error)throw signed.error;
      const response=await fetch(signed.data.signedUrl);if(!response.ok)throw Error('No se pudo leer el PDF guardado');
      const result=await window.ssomaHighlightWorkerPdf(await response.blob(),p,msg=>note.textContent=msg);
-     const url=URL.createObjectURL(result.blob),a=document.createElement('a');a.href=url;a.download='SCTR_'+kind.replace('SCTR_','')+'_'+String(p.dni||'trabajador')+'_RESALTADO.pdf';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
-     note.textContent='PDF resaltado generado: página '+result.page+' ('+result.method+'). Verifique visualmente la fila.';
+     const url=URL.createObjectURL(result.blob),link=document.createElement('a');
+     link.href=url;link.download='SCTR_'+kind.replace('SCTR_','')+'_'+String(p.dni||'trabajador')+'_RESALTADO.pdf';
+     document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
+     note.textContent='PDF resaltado generado: página '+result.page+'. Verifique visualmente la coincidencia.';
     }catch(err){note.textContent='No se generó el PDF resaltado: '+err.message;toast(err.message,true)}
     finally{b.disabled=false}
    });
