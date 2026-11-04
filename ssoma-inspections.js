@@ -78,5 +78,7 @@ function attachManagerDashboard(){if(window.__ssomaManagerBoot)return;window.__s
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',attachManagerDashboard);else attachManagerDashboard();
 function attachExecutiveTheme(){if(document.querySelector('link[href="ssoma-reference-theme.css"]'))return;const el=document.createElement('link');el.rel='stylesheet';el.href='ssoma-reference-theme.css';document.head.appendChild(el)}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',attachExecutiveTheme);else attachExecutiveTheme();
+function attachGerenciaPlus(){if(window.__ssomaGerenciaPlus)return;window.__ssomaGerenciaPlus=true;const link=document.createElement('link');link.rel='stylesheet';link.href='ssoma-gerencia-plus.css';document.head.appendChild(link);const script=document.createElement('script');script.src='ssoma-gerencia-plus.js';document.head.appendChild(script)}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',attachGerenciaPlus);else attachGerenciaPlus();
 window.ssomaInspections={page};
 })();
