@@ -68,16 +68,24 @@ async function save(){
  if(to<window.sctrContext.isoToday())return window.sctrContext.toast('No se puede registrar como vigente una cobertura vencida',true);
  for(const p of r.matches)payload.push({owner_id:window.sctrContext.session.user.id,person_id:p.id,document_type:r.kind,issue_date:from,expiry_date:to,provider_name:ins});
  }
- if(!payload.length)return window.sctrContext.toast('No hay DNI coincidentes para actualizar',true);
+ if(!results.length)return window.sctrContext.toast('No hay PDF analizados',true);
  const btn=el('sctrConfirm');btn.disabled=true;
  try{
- const response=await window.sctrContext.db.from('sst_worker_documents').upsert(payload,{onConflict:'person_id,document_type'});window.sctrContext.check(response.error);
- window.sctrContext.toast('Coberturas actualizadas: '+payload.length);el('sctrImportModal')?.remove();await window.sctrContext.load();
+ if(payload.length){const response=await window.sctrContext.db.from('sst_worker_documents').upsert(payload,{onConflict:'person_id,document_type'});window.sctrContext.check(response.error);}
+ const failures=[];
+ for(let i=0;i<results.length;i++){
+  const r=results[i],file=el(r.kind==='SCTR_SALUD'?'sctrHealth':'sctrPension').files[0];
+  const ins=el('sctrResults').querySelector('[data-sctr-insurer="'+i+'"]').value.trim(),from=el('sctrResults').querySelector('[data-sctr-from="'+i+'"]').value,to=el('sctrResults').querySelector('[data-sctr-to="'+i+'"]').value;
+  try{await window.archiveImportedSctr(currentContractor,r.kind,file,ins,from,to)}catch(err){failures.push(r.file+': '+err.message)}
+ }
+ if(failures.length)window.sctrContext.toast('Vigencias procesadas, pero falló archivo: '+failures.join('; '),true);
+ else window.sctrContext.toast('Coberturas procesadas: '+payload.length+' · PDF archivados: '+results.length);
+ el('sctrImportModal')?.remove();await window.sctrContext.load();
  }catch(e){window.sctrContext.toast('Error al guardar: '+e.message,true);btn.disabled=false}
 }
 window.openSctrImport=function(){
  const modal=document.createElement('div');modal.id='sctrImportModal';modal.className='modal';modal.style.zIndex='9999';
- modal.innerHTML='<div class="modalbox" style="max-width:850px"><div class="modalhead"><h2>Validación masiva de SCTR</h2><button class="btn light" id="sctrClose">✕ Cerrar</button></div><div style="padding:18px;max-height:80vh;overflow:auto"><p class="muted">Los PDF se leen en este navegador. No se guardan los archivos. Seleccione la contratista y revise los resultados antes de actualizar vigencias.</p><div class="formgrid"><label>Contratista<select id="sctrContractor"><option value="">Seleccione</option>'+window.sctrContext.state.contractors.map(c=>'<option value="'+esc(c.id)+'">'+esc(c.name)+'</option>').join('')+'</select></label><label>SCTR Salud (PDF)<input id="sctrHealth" type="file" accept="application/pdf,.pdf"></label><label>SCTR Pensión (PDF)<input id="sctrPension" type="file" accept="application/pdf,.pdf"></label></div><button class="btn green" id="sctrAnalyze">Analizar PDF</button><div id="sctrResults"></div></div></div>';
+ modal.innerHTML='<div class="modalbox" style="max-width:850px"><div class="modalhead"><h2>Validación masiva de SCTR</h2><button class="btn light" id="sctrClose">✕ Cerrar</button></div><div style="padding:18px;max-height:80vh;overflow:auto"><p class="muted">Los PDF se analizan en el navegador y, tras su confirmación, se guardan en la carpeta privada de la subcontratista. Seleccione la contratista y revise los resultados antes de actualizar vigencias.</p><div class="formgrid"><label>Contratista<select id="sctrContractor"><option value="">Seleccione</option>'+window.sctrContext.state.contractors.map(c=>'<option value="'+esc(c.id)+'">'+esc(c.name)+'</option>').join('')+'</select></label><label>SCTR Salud (PDF)<input id="sctrHealth" type="file" accept="application/pdf,.pdf"></label><label>SCTR Pensión (PDF)<input id="sctrPension" type="file" accept="application/pdf,.pdf"></label></div><button class="btn green" id="sctrAnalyze">Analizar PDF</button><div id="sctrResults"></div></div></div>';
  document.body.appendChild(modal);results=[];render();
  el('sctrClose').onclick=()=>modal.remove();modal.addEventListener('click',e=>{if(e.target===modal)modal.remove()});el('sctrAnalyze').onclick=analyze;
 };
