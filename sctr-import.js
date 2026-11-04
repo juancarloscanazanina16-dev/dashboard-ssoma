@@ -23,15 +23,7 @@ function dates(text){
  const from=pairs.find(x=>/DESDE|INICIO/i.test(x.line)&&x.ds.length),to=pairs.find(x=>/HASTA|FIN|VENCE|VENCIMIENTO/i.test(x.line)&&x.ds.length);
  return {from:from?.ds[0]||'',to:to?.ds[0]||'',source:[from?.line,to?.line].filter(Boolean).join(' | ')};
 }
-async function pdfText(file){
- if(file.size>15*1024*1024)throw Error('El PDF supera 15 MB');
- if(!window.pdfjsLib){await new Promise((resolve,reject)=>{const script=document.createElement('script');script.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';script.onload=resolve;script.onerror=()=>reject(Error('No se pudo cargar el lector PDF'));document.head.appendChild(script)});}
- pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
- const doc=await pdfjsLib.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise;
- if(doc.numPages>100)throw Error('PDF de más de 100 páginas: dividir en lotes');
- const pages=[];for(let i=1;i<=doc.numPages;i++){const p=await doc.getPage(i),content=await p.getTextContent();pages.push(content.items.map(x=>x.str).join(' '));}
- return pages.join('\n');
-}
+async function pdfText(file,onProgress){return (await window.ssomaReadPdf(file,onProgress)).text}
 function candidatesFor(text,contractorId){
  const matches=[];for(const p of window.sctrContext.state.personnel.filter(x=>x.active&&x.contractor_id===contractorId)){
  const dni=String(p.dni||'').trim();
@@ -73,8 +65,8 @@ async function analyze(){
  try{
  for(const [kind,file] of files){
  if(file.type!=='application/pdf'&&!file.name.toLowerCase().endsWith('.pdf'))throw Error('Solo se aceptan archivos PDF');
- const text=await pdfText(file);
- if(text.replace(/\s/g,'').length<50)throw Error(file.name+': PDF escaneado sin texto. Se necesita OCR para procesarlo.');
+ const text=await pdfText(file,message=>{el('sctrResults').textContent=message});
+ if(text.replace(/\s/g,'').length<50)throw Error(file.name+': No se pudo obtener texto suficiente, incluso mediante OCR.');
  const ins=insurer(text,kind),period=dates(text);
  results.push({kind,file:file.name,insurers:ins,from:period.from,to:period.to,matches:candidatesFor(text,contractorId),textLength:text.length});
  }
