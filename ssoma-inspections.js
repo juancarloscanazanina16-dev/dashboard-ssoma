@@ -46,7 +46,30 @@ document.addEventListener('click',e=>{if(!$('inspectionRoot'))return;const b=e.t
 document.addEventListener('change',e=>{if(!$('inspectionRoot'))return;if(e.target.id==='in-capture'){const img=$('in-preview'),file=e.target.files?.[0];if(img.dataset.objectUrl)URL.revokeObjectURL(img.dataset.objectUrl);if(file&&file.type.startsWith('image/')){img.dataset.objectUrl=URL.createObjectURL(file);img.src=img.dataset.objectUrl;img.style.display='block'}else{img.removeAttribute('src');img.style.display='none'}}if(e.target.id==='in-filter-date'){filterDate=e.target.value;draw()}if(e.target.id==='in-filter-contractor'){filterContractor=e.target.value;draw()}});
 document.addEventListener('submit',async e=>{if(!$('inspectionRoot')||!['in-inspection-form','in-finding-form','in-photo-form','in-status-form'].includes(e.target.id))return;e.preventDefault();const b=e.target.querySelector('[type=submit]');b.disabled=true;try{if(e.target.id==='in-inspection-form')await saveInspection(e.target);if(e.target.id==='in-finding-form')await saveFinding(e.target);if(e.target.id==='in-photo-form')await savePhoto(e.target);if(e.target.id==='in-status-form')await saveStatus(e.target)}catch(x){notify('No se pudo guardar: '+x.message,true)}finally{if(b.isConnected)b.disabled=false}});
 
-function attachEventsNavigation(){if(document.querySelector('.ssoma-event-nav'))return;const existing=document.querySelector('[data-page="inspections"]');if(!existing)return;const link=document.createElement('a');link.href='accidentes-incidentes.html';link.className='ssoma-event-nav';link.textContent='✚ Accidentes e Incidentes';link.title='Abrir módulo de accidentes e incidentes';existing.insertAdjacentElement('afterend',link)}
+let eventsLoaded=null;
+function attachEventsNavigation(){
+ if(document.querySelector('[data-page="events"]'))return;
+ const existing=document.querySelector('[data-page="inspections"]');if(!existing)return;
+ const button=document.createElement('button');button.type='button';button.dataset.page='events';button.textContent='✚ Accidentes e Incidentes';existing.insertAdjacentElement('afterend',button);
+ button.addEventListener('click',async e=>{
+  e.preventDefault();e.stopPropagation();
+  const ctx=window.sctrContext;
+  if(!ctx?.db||!ctx?.session)return ctx?.toast?.('Inicia sesión para abrir Accidentes e Incidentes',true);
+  const title=document.getElementById('pageTitle'),content=document.getElementById('content');
+  if(!content)return;
+  if(title)title.textContent='Accidentes e Incidentes';
+  document.querySelectorAll('[data-page]').forEach(x=>x.classList.toggle('active',x===button));
+  content.innerHTML='<p>Cargando Accidentes e Incidentes…</p>';
+  try{
+   if(!eventsLoaded)eventsLoaded=Promise.all([
+    new Promise((resolve,reject)=>{if(window.ssomaEvents)return resolve();const el=document.createElement('script');el.src='ssoma-events.js';el.onload=resolve;el.onerror=()=>reject(Error('No se pudo cargar el módulo'));document.head.appendChild(el)}),
+    new Promise((resolve,reject)=>{if(document.querySelector('link[href="ssoma-events.css"]'))return resolve();const el=document.createElement('link');el.rel='stylesheet';el.href='ssoma-events.css';el.onload=resolve;el.onerror=()=>reject(Error('No se pudo cargar el estilo'));document.head.appendChild(el)})
+   ]).catch(err=>{eventsLoaded=null;throw err});
+   await eventsLoaded;
+   content.innerHTML=window.ssomaEvents.page({db:ctx.db,toast:ctx.toast,state:ctx.state});
+  }catch(err){content.textContent='No se pudo abrir Accidentes e Incidentes: '+err.message;ctx.toast(err.message,true)}
+ },true);
+}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',attachEventsNavigation);else attachEventsNavigation();
 window.ssomaInspections={page};
 })();
