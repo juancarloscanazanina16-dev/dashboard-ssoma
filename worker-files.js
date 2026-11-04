@@ -31,6 +31,20 @@ window.attachWorkerDocumentFolders=function(modal,p,ctx){
    container.querySelector('[data-file-count]').textContent=(res.data||[]).length+' PDF';
    list.innerHTML=(res.data||[]).map(r=>'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:6px 0"><span style="flex:1;min-width:140px">'+H(r.original_name)+'</span><small>'+H(new Date(r.uploaded_at).toLocaleDateString('es-PE'))+'</small><button type="button" class="btn light small" data-view="'+H(r.id)+'">Ver / descargar</button></div>').join('')||'<span class="muted">Sin documentos guardados</span>';
    list.querySelectorAll('[data-view]').forEach(b=>b.onclick=async()=>{const r=res.data.find(x=>x.id===b.dataset.view),url=await db.storage.from(B).createSignedUrl(r.storage_path,120);if(url.error)return toast(url.error.message,true);window.open(url.data.signedUrl,'_blank','noopener,noreferrer')});
+   list.querySelectorAll('[data-highlight]').forEach(b=>b.onclick=async()=>{
+    const r=res.data.find(x=>x.id===b.dataset.highlight);if(!r)return;
+    b.disabled=true;
+    try{
+     note.textContent='Preparando descarga resaltada...';
+     const signed=await db.storage.from(B).createSignedUrl(r.storage_path,120);
+     if(signed.error)throw signed.error;
+     const response=await fetch(signed.data.signedUrl);if(!response.ok)throw Error('No se pudo leer el PDF guardado');
+     const result=await window.ssomaHighlightWorkerPdf(await response.blob(),p,msg=>note.textContent=msg);
+     const url=URL.createObjectURL(result.blob),a=document.createElement('a');a.href=url;a.download='SCTR_'+kind.replace('SCTR_','')+'_'+String(p.dni||'trabajador')+'_RESALTADO.pdf';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
+     note.textContent='PDF resaltado generado: página '+result.page+' ('+result.method+'). Verifique visualmente la fila.';
+    }catch(err){note.textContent='No se generó el PDF resaltado: '+err.message;toast(err.message,true)}
+    finally{b.disabled=false}
+   });
   }
   fileInput.onchange=async()=>{
    const file=fileInput.files?.[0];if(!file)return;
