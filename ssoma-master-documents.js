@@ -158,15 +158,29 @@ async function openFile(id,mode='view'){
  const tab=mode==='download'?null:window.open('','_blank');
  if(tab){tab.document.title='Preparando documento';tab.document.body.textContent='Preparando archivo seguro...';}
  try{
-  const r=await ctx.db.storage.from(BUCKET).createSignedUrl(d.storage_path,120,mode==='download'?{download:d.original_filename}:{});
-  if(r.error)throw r.error;
+  if(mode==='print'){
+   // Descargar como Blob evita restricciones de impresión de un PDF en otro origen.
+   const result=await ctx.db.storage.from(BUCKET).download(d.storage_path);
+   if(result.error)throw result.error;
+   if(!tab){msg('Habilita las ventanas emergentes para imprimir.',true);return;}
+   const url=URL.createObjectURL(new Blob([result.data],{type:'application/pdf'}));
+   tab.document.open();
+   tab.document.write('<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Imprimir documento</title><style>html,body{height:100%;margin:0}iframe{width:100%;height:100%;border:0}</style></head><body><iframe id="pdfprint" title="Documento para imprimir"></iframe></body></html>');
+   tab.document.close();
+   const frame=tab.document.getElementById('pdfprint');
+   frame.onload=()=>{try{frame.contentWindow.focus();frame.contentWindow.print();}catch(err){msg('Usa Ctrl + P en la ventana de impresión.',true);}};
+   frame.src=url;
+   tab.addEventListener('beforeunload',()=>URL.revokeObjectURL(url),{once:true});
+   return;
+  }
+  const result=await ctx.db.storage.from(BUCKET).createSignedUrl(d.storage_path,120,mode==='download'?{download:d.original_filename}:{});
+  if(result.error)throw result.error;
   if(mode==='download'){
-   const a=document.createElement('a');a.href=r.data.signedUrl;a.download=d.original_filename;document.body.appendChild(a);a.click();a.remove();
+   const link=document.createElement('a');link.href=result.data.signedUrl;link.download=d.original_filename;document.body.appendChild(link);link.click();link.remove();
    msg('Descarga solicitada: '+d.original_filename);return;
   }
   if(!tab){msg('Habilita las ventanas emergentes para abrir el archivo.',true);return;}
-  tab.location.replace(r.data.signedUrl);
-  if(mode==='print')msg('PDF abierto. Usa el icono Imprimir del visor o Ctrl + P.');
+  tab.location.replace(result.data.signedUrl);
  }catch(e){tab?.close();msg('No se pudo acceder al archivo: '+e.message,true);}
 }
 document.addEventListener('click',e=>{
