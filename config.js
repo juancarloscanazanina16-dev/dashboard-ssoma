@@ -13,7 +13,7 @@ window.SSOMA_CONFIG = {
       const css=document.createElement('link');css.rel='stylesheet';css.href='ssoma-personnel-lifecycle.css?v=20261104c';css.dataset.ssomaPersonnelLifecycle='1';document.head.appendChild(css);
     }
     if(!document.querySelector('script[data-ssoma-personnel-lifecycle]')){
-      const js=document.createElement('script');js.src='ssoma-personnel-lifecycle.js?v=20261104c';js.dataset.ssomaPersonnelLifecycle='1';document.head.appendChild(js);
+      const js=document.createElement('script');js.src='ssoma-personnel-lifecycle.js?v=20261104d';js.dataset.ssomaPersonnelLifecycle='1';document.head.appendChild(js);
     }
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
