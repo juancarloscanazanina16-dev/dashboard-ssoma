@@ -86,7 +86,7 @@ async function openFile(id){
 document.addEventListener('click',e=>{
  if(!root())return;
  const b=e.target.closest('button');if(!b)return;
- if(b.dataset.mdTab){system=b.dataset.mdTab;document.getElementById('md-system').value=system;draw();}if(b.id==='md-upload')upload();
+ if(b.dataset.mdTab){system=b.dataset.mdTab;document.getElementById('md-system').value=system;document.getElementById('md-type').value='TODOS';draw();}if(b.id==='md-upload')upload();
  if(b.id==='md-refresh')refresh();
  if(b.dataset.mdOpen)openFile(b.dataset.mdOpen);
  if(b.dataset.mdFolder){const [s]=b.dataset.mdFolder.split(':');system=s;document.getElementById('md-system').value=s;folders();document.getElementById('md-type').value=b.dataset.mdFolder;draw();}
