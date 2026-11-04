@@ -22,7 +22,8 @@ window.attachWorkerDocumentFolders=function(modal,p,ctx){
  const {db,session,toast,check}=ctx;
  modal.querySelectorAll('[data-document-kind]').forEach(form=>{
   const kind=form.dataset.documentKind,container=document.createElement('div');container.style.cssText='border-top:1px solid #dbe5ef;margin-top:14px;padding-top:12px';
-  container.innerHTML='<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><b>📁 Archivo del trabajador · '+H(kind.replaceAll('_',' '))+'</b><span data-file-count class="muted"></span></div><label style="display:block;margin:10px 0">Adjuntar PDF<input type="file" accept=".pdf,application/pdf" data-worker-pdf></label><p class="muted" data-worker-note style="font-size:12px">Al seleccionar un PDF se intentará completar emisor y fechas. Revise antes de guardar.</p><button type="button" class="btn light small" data-worker-upload>Guardar PDF en carpeta</button><div data-worker-list style="margin-top:10px"></div>';
+  const linked=kind==='SCTR_SALUD'||kind==='SCTR_PENSION';
+  container.innerHTML='<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><b>📁 '+(linked?'SCTR vinculado a Expedientes':'Archivo del trabajador · '+H(kind))+'</b><span data-file-count class="muted"></span></div>'+(linked?'<p class="muted" style="font-size:12px;margin:8px 0">Pólizas de la contratista asignada. La cobertura individual solo se considera validada tras confirmar el DNI en la relación de asegurados. Los archivos individuales anteriores se conservan como históricos.</p>':'<label style="display:block;margin:10px 0">Adjuntar PDF<input type="file" accept=".pdf,application/pdf" data-worker-pdf></label><p class="muted" data-worker-note style="font-size:12px">Al seleccionar un PDF se intentará completar emisor y fechas. Revise antes de guardar.</p><button type="button" class="btn light small" data-worker-upload>Guardar PDF en carpeta</button>')+'<p class="muted" data-worker-note style="font-size:12px;display:'+(linked?'block':'none')+'"></p><div data-worker-list style="margin-top:10px"></div>';
   form.appendChild(container);
   const fileInput=container.querySelector('[data-worker-pdf]'),note=container.querySelector('[data-worker-note]'),button=container.querySelector('[data-worker-upload]'),list=container.querySelector('[data-worker-list]');
   async function refresh(){
@@ -31,13 +32,15 @@ window.attachWorkerDocumentFolders=function(modal,p,ctx){
    const individual=(res.data||[]).map(r=>({...r,bucket:B,source:'Individual'}));
    let company=[];
    if(kind.startsWith('SCTR_')&&p.contractor_id){
-    const cr=await db.from('sst_contractor_files').select('id,original_name,storage_path,uploaded_at').eq('contractor_id',p.contractor_id).eq('category',kind).order('uploaded_at',{ascending:false}).limit(100);
+    const cr=await db.from('sst_contractor_files').select('id,original_name,storage_path,uploaded_at,coverage_start,coverage_end,insurer').eq('contractor_id',p.contractor_id).eq('category',kind).order('uploaded_at',{ascending:false}).limit(100);
     if(cr.error){note.textContent='No se pudo consultar el expediente empresarial: '+cr.error.message}
     else company=(cr.data||[]).map(r=>({...r,bucket:'sst-contractor-files',source:'Empresa · por verificar DNI'}));
    }
-   const files=[...individual,...company];
-   container.querySelector('[data-file-count]').textContent=individual.length+' individual(es) · '+company.length+' empresa';
-   list.innerHTML=(files.map((r,i)=>'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0;padding:9px;border:1px solid #dbe5ef;border-radius:10px"><span style="flex:1;min-width:150px"><b>'+H(r.original_name)+'</b><br><small>'+H(r.source)+' · '+H(new Date(r.uploaded_at).toLocaleDateString('es-PE'))+'</small></span><button type="button" class="btn light small" data-view-index="'+i+'">PDF original</button>'+(kind.startsWith('SCTR_')?'<button type="button" class="btn green small" data-highlight-index="'+i+'">🖍 Descargar PDF resaltado</button>':'')+(r.bucket===B?'<button type="button" class="btn light small" data-delete-index="'+i+'" style="color:#b42318;border:1px solid #f4b4ae" title="Eliminar únicamente este PDF individual">🗑 Eliminar</button>':'')+'</div>').join('')||'<p class="muted">Aún no existen PDF en la carpeta individual ni en la carpeta SCTR de la subcontratista. Adjunte un PDF o cargue una póliza empresarial para habilitar las descargas.</p>');
+   const today=new Date().toISOString().slice(0,10);
+   company.sort((a,b)=>Number(!!b.coverage_end&&b.coverage_start<=today&&b.coverage_end>=today)-Number(!!a.coverage_end&&a.coverage_start<=today&&a.coverage_end>=today)||(b.coverage_end||'').localeCompare(a.coverage_end||'')||(b.uploaded_at||'').localeCompare(a.uploaded_at||''));
+   const files=linked?[...company,...individual]:individual;
+   container.querySelector('[data-file-count]').textContent=linked?company.length+' póliza(s) empresarial(es) · '+individual.length+' histórico(s)':individual.length+' archivo(s)';
+   list.innerHTML=(files.map((r,i)=>'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0;padding:9px;border:1px solid #dbe5ef;border-radius:10px"><span style="flex:1;min-width:150px"><b>'+H(r.original_name)+'</b><br><small>'+H(r.source)+' · '+H(new Date(r.uploaded_at).toLocaleDateString('es-PE'))+'</small></span><button type="button" class="btn light small" data-view-index="'+i+'">PDF original</button>'+(kind.startsWith('SCTR_')?'<button type="button" class="btn green small" data-highlight-index="'+i+'">🖍 Descargar PDF resaltado</button>':'')+(r.bucket===B?'<button type="button" class="btn light small" data-delete-index="'+i+'" style="color:#b42318;border:1px solid #f4b4ae" title="Eliminar únicamente este PDF individual">🗑 Eliminar</button>':'')+'</div>').join('')||'<p class="muted">'+(linked?'No hay pólizas SCTR en Expedientes de esta contratista. Cargue el SCTR desde Expedientes y valide a los trabajadores.':'Aún no existen PDF individuales. Adjunte uno para habilitar las descargas.')+'</p>');
    list.querySelectorAll('[data-delete-index]').forEach(b=>b.onclick=async()=>{
     const r=files[Number(b.dataset.deleteIndex)];
     if(!r||r.bucket!==B)return;
@@ -76,7 +79,7 @@ window.attachWorkerDocumentFolders=function(modal,p,ctx){
     finally{b.disabled=false}
    });
   }
-  fileInput.onchange=async()=>{
+  if(!linked)fileInput.onchange=async()=>{
    const file=fileInput.files?.[0];if(!file)return;
    if(file.size>15*1024*1024)return note.textContent='Máximo 15 MB';
    note.textContent='Analizando documento...';
@@ -88,7 +91,7 @@ window.attachWorkerDocumentFolders=function(modal,p,ctx){
     note.textContent=data.scanned?'El OCR no encontró texto suficiente. Revise el PDF y complete los datos manualmente.':!data.from||!data.to||!data.provider?'Extracción parcial. Revise o complete fechas y emisor antes de guardar.':'Campos sugeridos. Verifique las fechas y el emisor antes de guardar.';
    }catch(e){note.textContent='No se pudo analizar: '+e.message+'. Puede guardar el archivo y registrar los datos manualmente.'}
   };
-  button.onclick=async()=>{
+  if(!linked)button.onclick=async()=>{
    const file=fileInput.files?.[0];if(!file)return toast('Seleccione un PDF',true);
    if(file.size>15*1024*1024||!(file.type==='application/pdf'||file.name.toLowerCase().endsWith('.pdf')))return toast('Solo PDF de hasta 15 MB',true);
    if(!window.confirm('¿Guardar el PDF en la carpeta individual de este trabajador? Los campos sugeridos no se guardarán como vigencias hasta pulsar el botón Guardar del apartado.'))return;
