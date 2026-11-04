@@ -3,7 +3,7 @@
 const CATS=[['SCTR_SALUD','SCTR Salud'],['SCTR_PENSION','SCTR Pensión'],['FICHA_ATENCION_MEDICA','Ficha de atención médica · Gerencia General']];
 const ctx=()=>window.sctrContext;
 const safe=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
-let contractorId='',records=[];
+let contractorId='',records=[],selected=new Set(),deleting=false;
 
 const norm=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();
 function isoDate(raw){
@@ -55,15 +55,48 @@ async function autoFill(e){
 function nameOf(id){return ctx().state.contractors.find(c=>c.id===id)?.name||'Subcontratista'}
 async function fetchFiles(){
  const q=await ctx().db.from('sst_contractor_files').select('*').eq('contractor_id',contractorId).order('uploaded_at',{ascending:false}).limit(500);
- if(q.error)throw q.error;records=q.data||[];
+ if(q.error)throw q.error;records=q.data||[];selected.clear();
 }
 function view(){
  const root=document.getElementById('contractorArchive');if(!root)return;
- root.innerHTML='<div class="hero-v2"><div><h2>Expedientes documentales</h2><p>Documentos originales por subcontratista · almacenamiento privado</p></div></div><div class="card section"><h3>Seleccionar subcontratista</h3><select id="archiveContractor"><option value="">Seleccione una subcontratista</option>'+ctx().state.contractors.map(c=>'<option value="'+safe(c.id)+'" '+(c.id===contractorId?'selected':'')+'>'+safe(c.name)+'</option>').join('')+'</select></div>'+(contractorId?'<div class="card section"><h3>📁 '+safe(nameOf(contractorId))+'</h3><p class="muted">Los documentos son privados y solo se pueden consultar desde una sesión autorizada.</p>'+CATS.map(([key,label])=>'<div class="card" style="margin:14px 0;padding:16px"><div class="flex between" style="gap:8px;flex-wrap:wrap"><h3>📁 '+safe(label)+'</h3><span class="muted">'+records.filter(r=>r.category===key).length+' archivo(s)</span></div>'+(key==='FICHA_ATENCION_MEDICA'?'<form data-archive-upload="'+key+'" style="margin:10px 0"><div class="formgrid"><label>Ficha médica PDF<input name="file" type="file" accept="application/pdf,.pdf" required></label><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" name="signed"> Firma de Gerencia General verificada por SSOMA</label></div><button class="btn green small" type="submit">↑ Guardar ficha en carpeta</button></form>':'<p class="muted">Archivo original de la empresa. Para incorporar nuevas pólizas, use una sola validación y conciliación con el personal asegurado.</p><button type="button" class="btn green small" data-archive-sctr="'+key+'">↑ Analizar y archivar SCTR</button>')+'<div class="tablewrap"><table><thead><tr><th>Archivo</th><th>Registro</th><th>Detalle</th><th>Acción</th></tr></thead><tbody>'+records.filter(r=>r.category===key).map(r=>'<tr><td>'+safe(r.original_name)+'</td><td>'+safe(new Date(r.uploaded_at).toLocaleDateString('es-PE'))+'</td><td>'+safe(key==='FICHA_ATENCION_MEDICA'?(r.manager_signature_verified?'Firma verificada':'Firma pendiente de verificación'):[r.insurer,r.coverage_start,r.coverage_end].filter(Boolean).join(' · ')||'Sin metadatos')+'</td><td><button type="button" class="btn light small" data-archive-open="'+safe(r.id)+'">Ver / descargar</button></td></tr>').join('')+(records.some(r=>r.category===key)?'':'<tr><td colspan="4">Carpeta sin documentos</td></tr>')+'</tbody></table></div></div>').join('')+'</div>':'');
+ root.innerHTML='<div class="hero-v2"><div><h2>Expedientes documentales</h2><p>Documentos originales por subcontratista · almacenamiento privado</p></div></div><div class="card section"><h3>Seleccionar subcontratista</h3><select id="archiveContractor"><option value="">Seleccione una subcontratista</option>'+ctx().state.contractors.map(c=>'<option value="'+safe(c.id)+'" '+(c.id===contractorId?'selected':'')+'>'+safe(c.name)+'</option>').join('')+'</select></div>'+(contractorId?'<div class="card section"><h3>📁 '+safe(nameOf(contractorId))+'</h3><p class="muted">Los documentos son privados y solo se pueden consultar desde una sesión autorizada.</p>'+CATS.map(([key,label])=>'<div class="card" style="margin:14px 0;padding:16px"><div class="flex between" style="gap:8px;flex-wrap:wrap"><h3>📁 '+safe(label)+'</h3><span class="muted">'+records.filter(r=>r.category===key).length+' archivo(s)</span></div>'+(key==='FICHA_ATENCION_MEDICA'?'<form data-archive-upload="'+key+'" style="margin:10px 0"><div class="formgrid"><label>Ficha médica PDF<input name="file" type="file" accept="application/pdf,.pdf" required></label><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" name="signed"> Firma de Gerencia General verificada por SSOMA</label></div><button class="btn green small" type="submit">↑ Guardar ficha en carpeta</button></form>':'<p class="muted">Archivo original de la empresa. Para incorporar nuevas pólizas, use una sola validación y conciliación con el personal asegurado.</p><button type="button" class="btn green small" data-archive-sctr="'+key+'">↑ Analizar y archivar SCTR</button>')+'<div style="display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin:10px 0"><label style="font-size:12px"><input type="checkbox" data-archive-select-all="'+key+'"> Seleccionar todos</label><button type="button" class="btn red small" data-archive-delete-selected="'+key+'" disabled>Eliminar seleccionados (0)</button></div><div class="tablewrap"><table><thead><tr><th>Seleccionar</th><th>Archivo</th><th>Registro</th><th>Detalle</th><th>Acción</th></tr></thead><tbody>'+records.filter(r=>r.category===key).map(r=>'<tr><td><input type="checkbox" data-archive-select="'+safe(r.id)+'" '+(selected.has(r.id)?'checked':'')+' aria-label="Seleccionar documento"></td><td>'+safe(r.original_name)+'</td><td>'+safe(new Date(r.uploaded_at).toLocaleDateString('es-PE'))+'</td><td>'+safe(key==='FICHA_ATENCION_MEDICA'?(r.manager_signature_verified?'Firma verificada':'Firma pendiente de verificación'):[r.insurer,r.coverage_start,r.coverage_end].filter(Boolean).join(' · ')||'Sin metadatos')+'</td><td><button type="button" class="btn light small" data-archive-open="'+safe(r.id)+'">Ver / descargar</button></td></tr>').join('')+(records.some(r=>r.category===key)?'':'<tr><td colspan="5">Carpeta sin documentos</td></tr>')+'</tbody></table></div></div>').join('')+'</div>':'');
  root.querySelector('#archiveContractor').onchange=async e=>{contractorId=e.target.value;await reload()};
  root.querySelectorAll('[data-archive-upload]').forEach(f=>{f.onsubmit=upload});
  root.querySelectorAll('[data-archive-sctr]').forEach(b=>b.onclick=()=>window.openSctrImport(contractorId,b.dataset.archiveSctr));
  root.querySelectorAll('[data-archive-open]').forEach(b=>b.onclick=()=>openFile(b.dataset.archiveOpen));
+ root.querySelectorAll('[data-archive-delete]').forEach(b=>b.onclick=()=>deleteFiles([b.dataset.archiveDelete]));
+ root.querySelectorAll('[data-archive-select]').forEach(b=>b.onchange=()=>{if(b.checked)selected.add(b.dataset.archiveSelect);else selected.delete(b.dataset.archiveSelect);updateSelection(root)});
+ root.querySelectorAll('[data-archive-select-all]').forEach(b=>b.onchange=()=>{records.filter(r=>r.category===b.dataset.archiveSelectAll).forEach(r=>{if(b.checked)selected.add(r.id);else selected.delete(r.id)});root.querySelectorAll('[data-archive-select]').forEach(c=>c.checked=selected.has(c.dataset.archiveSelect));updateSelection(root)});
+ root.querySelectorAll('[data-archive-delete-selected]').forEach(b=>b.onclick=()=>deleteFiles(records.filter(r=>r.category===b.dataset.archiveDeleteSelected&&selected.has(r.id)).map(r=>r.id)));
+ updateSelection(root);
+}
+function updateSelection(root){
+ root.querySelectorAll('[data-archive-delete-selected]').forEach(b=>{const count=records.filter(r=>r.category===b.dataset.archiveDeleteSelected&&selected.has(r.id)).length;b.disabled=!count||deleting;b.textContent='Eliminar seleccionados ('+count+')'});
+ root.querySelectorAll('[data-archive-select-all]').forEach(b=>{const ids=records.filter(r=>r.category===b.dataset.archiveSelectAll).map(r=>r.id),count=ids.filter(id=>selected.has(id)).length;b.checked=ids.length>0&&count===ids.length;b.indeterminate=count>0&&count<ids.length});
+}
+async function deleteFiles(ids){
+ if(deleting||!ids.length)return;
+ const target=records.filter(r=>ids.includes(r.id)&&r.contractor_id===contractorId);
+ if(target.length!==ids.length)return ctx().toast('La selección cambió; actualice el expediente.',true);
+ const kinds=[...new Set(target.map(r=>r.category))].map(k=>CATS.find(c=>c[0]===k)?.[1]||k).join(', ');
+ if(!window.confirm('¿Eliminar definitivamente '+target.length+' PDF de '+nameOf(contractorId)+'?\nCarpetas: '+kinds+'\n\nSe borrarán los archivos y sus registros empresariales. Esta acción NO elimina ni recalcula automáticamente las vigencias individuales de los trabajadores. No se puede deshacer.'))return;
+ deleting=true;updateSelection(document.getElementById('contractorArchive'));
+ const failures=[];
+ for(const file of target){
+  try{
+   // Borrar primero el objeto. Si falla, conservar el registro para permitir reintento.
+   const removed=await ctx().db.storage.from('sst-contractor-files').remove([file.storage_path]);
+   if(removed.error)throw removed.error;
+   const deleted=await ctx().db.from('sst_contractor_files').delete().eq('id',file.id).eq('contractor_id',contractorId).select('id');
+   if(deleted.error)throw deleted.error;
+   if(!deleted.data?.length)throw Error('No se pudo confirmar la eliminación del registro');
+   selected.delete(file.id);
+  }catch(err){failures.push(file.original_name+': '+err.message)}
+ }
+ deleting=false;
+ await reload();
+ if(failures.length)ctx().toast('Algunos archivos no pudieron eliminarse: '+failures.join('; '),true);
+ else ctx().toast('Se eliminaron '+target.length+' documento(s) del expediente empresarial');
 }
 async function reload(){try{records=[];if(contractorId)await fetchFiles();view()}catch(e){ctx().toast('No se pudo consultar expediente: '+e.message,true)}}
 async function upload(e){
