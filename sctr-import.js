@@ -48,10 +48,24 @@ function planUpdates(){
 }
 function render(){
  const host=el('sctrResults');if(!host)return;
- host.innerHTML=results.length?results.map((r,i)=>'<div class="card" style="padding:14px;margin:12px 0"><b>'+esc(r.file)+'</b> · '+esc(r.kind==='SCTR_SALUD'?'Salud':'Pensión')+'<p class="muted">Aseguradora detectada: <b>'+esc(r.insurers.join(', ')||'No identificada')+'</b> · DNI coincidentes: <b>'+r.matches.length+'</b> · Páginas con texto: '+r.textLength+'</p><div class="formgrid"><label>Aseguradora (confirmar)<input data-sctr-insurer="'+i+'" value="'+esc(r.insurers.length===1?r.insurers[0]:'')+'" placeholder="Nombre de aseguradora"></label><label>Inicio cobertura<input type="date" data-sctr-from="'+i+'" value="'+esc(r.from||'')+'"></label><label>Fin cobertura<input type="date" data-sctr-to="'+i+'" value="'+esc(r.to||'')+'"></label></div><p class="muted">DNI encontrados en la contrata seleccionada: '+esc(r.matches.map(p=>p.full_name+' ('+p.dni+')').join('; ')||'Ninguno')+'</p><p class="muted">Las fechas detectadas son sugerencias: verificar contra la póliza antes de confirmar.</p></div>').join('')+'<label style="display:flex;align-items:center;gap:8px;margin:12px 0"><input type="checkbox" id="sctrReviewed"> He revisado los PDF, la contratista, la aseguradora, los DNI y las fechas de cobertura.</label><button class="btn green" id="sctrConfirm">Confirmar y actualizar '+results.reduce((n,r)=>n+r.matches.length,0)+' coberturas</button>':'<p class="muted">Seleccione una contratista y adjunte uno o ambos PDF para analizar su contenido.</p>';
+ host.innerHTML=results.length?results.map((r,i)=>{
+ const people=r.matches.map(p=>{
+ const old=(window.sctrContext.state.documents||[]).find(d=>d.person_id===p.id&&d.document_type===r.kind);
+ const newer=!!r.to&&(!old?.expiry_date||r.to>old.expiry_date);
+ return '<label style="display:flex;gap:8px;align-items:center;margin:6px 0"><input type="checkbox" data-sctr-worker="'+i+'" value="'+esc(p.id)+'" '+(newer?'checked':'')+'><span>'+esc(p.full_name)+' · '+esc(p.dni)+'</span><small style="margin-left:auto">'+(newer?'Renovar':'No renovar')+' · actual: '+esc(old?.expiry_date||'sin registro')+'</small></label>';
+ }).join('');
+ return '<div class="card" style="padding:14px;margin:12px 0"><b>'+esc(r.file)+'</b> · '+(r.kind==='SCTR_SALUD'?'Salud':'Pensión')+'<p class="muted">Aseguradora detectada: '+esc(r.insurers.join(', ')||'No identificada')+' · DNI coincidentes: '+r.matches.length+'</p><div class="formgrid"><label>Aseguradora (confirmar)<input data-sctr-insurer="'+i+'" value="'+esc(r.insurers.length===1?r.insurers[0]:'')+'"></label><label>Inicio cobertura<input type="date" data-sctr-from="'+i+'" value="'+esc(r.from||'')+'"></label><label>Fin cobertura<input type="date" data-sctr-to="'+i+'" value="'+esc(r.to||'')+'"></label></div><b>Trabajadores incluidos para renovación</b><div style="max-height:230px;overflow:auto">'+(people||'<p class="muted">Ningún trabajador coincidente. Verifique el documento.</p>')+'</div><p class="muted">Revise que cada DNI esté en la relación de asegurados, no solamente en otra parte del PDF. Solo se renovarán coberturas con vencimiento posterior.</p></div>';
+ }).join('')+'<label style="display:flex;align-items:center;gap:8px;margin:12px 0"><input type="checkbox" id="sctrReviewed"> Confirmo aseguradora, vigencias y DNI de los asegurados seleccionados.</label><button class="btn green" id="sctrConfirm">Archivar pólizas y renovar trabajadores seleccionados</button>':'<p class="muted">Seleccione una contratista y adjunte uno o ambos PDF.</p>';
  el('sctrConfirm')?.addEventListener('click',save);
- host.querySelectorAll('[data-sctr-to]').forEach(x=>x.addEventListener('change',()=>{const i=Number(x.dataset.sctrTo),r=results[i],old=window.sctrContext.state.documents||[];host.querySelectorAll('[data-sctr-worker="'+i+'"]').forEach(c=>{const p=r.matches.find(p=>p.id===c.value),prior=old.find(d=>d.person_id===p.id&&d.document_type===r.kind);c.checked=!prior?.expiry_date||x.value>prior.expiry_date})}));
+ host.querySelectorAll('[data-sctr-to]').forEach(x=>x.addEventListener('change',()=>{
+ const i=Number(x.dataset.sctrTo),r=results[i],old=window.sctrContext.state.documents||[];
+ host.querySelectorAll('[data-sctr-worker="'+i+'"]').forEach(c=>{
+ const prior=old.find(d=>d.person_id===c.value&&d.document_type===r.kind);
+ c.checked=!!x.value&&(!prior?.expiry_date||x.value>prior.expiry_date);
+ });
+ }));
 }
+
 async function analyze(){
  const contractorId=el('sctrContractor').value, files=[['SCTR_SALUD',el('sctrHealth').files[0]],['SCTR_PENSION',el('sctrPension').files[0]]].filter(x=>x[1]);
  if(!contractorId||!files.length)return window.sctrContext.toast('Seleccione contratista y al menos un PDF',true);
