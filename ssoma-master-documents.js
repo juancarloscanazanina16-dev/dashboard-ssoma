@@ -15,11 +15,12 @@ const parse=name=>{
 };
 let ctx=null,docs=[],system='TODOS',query='',statusFilter='TODOS',busy=false;
 const root=()=>document.getElementById('masterDocumentsRoot');
+const readOnly=()=>window.__ssomaReadOnly===true;
 const msg=(s,bad=false)=>ctx?.toast?.(s,bad);
 function page(c){ctx=c;system=c.initialSystem||'TODOS';query='';statusFilter='TODOS';docs=[];setTimeout(refresh,0);return `<section id="masterDocumentsRoot" class="md-root">
 <div class="md-hero"><div><span class="md-eyebrow">SSOMA CONTROL 2.0 · Gestión integrada</span><h2>Lista Maestra Documental</h2><p>Biblioteca central SGSST y SGA · Codificación y versiones automáticas</p></div><div class="md-hero-icon">▤</div></div>
 <div class="md-grid md-kpi-grid"><button type="button" class="md-tile md-kpi" data-md-status-filter="TODOS"><strong id="md-total">—</strong><span>Total de versiones</span></button><button type="button" class="md-tile md-kpi md-kpi-green" data-md-status-filter="VIGENTE"><strong id="md-vigente">—</strong><span>● Vigentes</span></button><button type="button" class="md-tile md-kpi md-kpi-yellow" data-md-status-filter="PENDIENTE"><strong id="md-pending">—</strong><span>● En revisión</span></button><button type="button" class="md-tile md-kpi md-kpi-red" data-md-status-filter="OBSOLETO"><strong id="md-obsoleto">—</strong><span>● Obsoletos</span></button></div>
-<div class="card md-panel"><div class="md-panel-title"><div><h3>Importar documentos Word, PDF y Excel</h3><p class="muted">El nombre codificado genera automáticamente el registro. PDF, DOC, DOCX, XLS y XLSX · Hasta 20 MB por archivo.</p></div></div>
+<div class="card md-panel" id="md-upload-panel" ${readOnly()?'style="display:none"':''}><div class="md-panel-title"><div><h3>Importar documentos Word, PDF y Excel</h3><p class="muted">El nombre codificado genera automáticamente el registro. PDF, DOC, DOCX, XLS y XLSX · Hasta 20 MB por archivo.</p></div></div>
 <div class="md-upload-controls"><label>Sistema documental<select id="md-upload-system"><option value="SGSST">SGSST · Seguridad y Salud</option><option value="SGA">SGA · Gestión Ambiental</option></select></label><label class="md-filelabel">Seleccionar archivos<input id="md-file" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx" multiple></label><button type="button" id="md-upload" class="btn green">↑ Subir y registrar</button></div>
 <div id="md-preview" class="md-preview muted">Ejemplo: SGSST-ATS-001_Analisis_de_trabajo_seguro_V01.pdf</div><p class="muted">Los documentos cargados quedan PENDIENTES hasta su revisión y aprobación. No se publican automáticamente como vigentes.</p></div>
 <div class="card md-panel"><div class="md-panel-title"><div><h3>Biblioteca y Lista Maestra</h3><p class="muted">Búsqueda por código, nombre, tipo, sistema o versión</p></div><button id="md-refresh" class="btn light small">↻ Actualizar</button></div>
@@ -39,7 +40,7 @@ function draw(){
  folders();
  const type=n('md-type').value;
  const rows=filteredDocs();
- n('md-rows').innerHTML=rows.length?rows.map(d=>`<tr><td><span class="md-system ${d.system_code==='SGA'?'env':''}">${esc(d.system_code)}</span><br><small>${esc(TYPES[d.system_code]?.[d.document_type]||d.document_type)}</small></td><td><b>${esc(d.document_code)}</b></td><td>${esc(d.document_name)}</td><td>V${String(d.version_number).padStart(2,'0')}</td><td><select class="md-status-select md-status-${d.status==='VIGENTE'?'green':d.status==='OBSOLETO'?'red':'yellow'}" data-md-status="${esc(d.id)}" aria-label="Estado de ${esc(d.document_code)}"><option value="PENDIENTE" ${d.status==='PENDIENTE'?'selected':''}>En revisión</option><option value="VIGENTE" ${d.status==='VIGENTE'?'selected':''}>Válido / Vigente</option><option value="OBSOLETO" ${d.status==='OBSOLETO'?'selected':''}>Obsoleto</option></select></td><td>${new Date(d.uploaded_at).toLocaleDateString('es-PE')}</td><td><span class="md-ext">${esc(extension(d.original_filename).toUpperCase())}</span></td><td><div class="md-file-actions"><button type="button" class="btn light small" data-md-open="${esc(d.id)}">Ver</button><button type="button" class="btn light small" data-md-download="${esc(d.id)}">↓ Descargar</button><button type="button" class="btn light small" data-md-print="${esc(d.id)}">▤ Imprimir</button></div></td><td><button type="button" class="btn red small" data-md-delete="${esc(d.id)}" aria-label="Eliminar ${esc(d.document_code)} versión ${d.version_number}">Eliminar</button></td></tr>`).join(''):'<tr><td colspan="9" class="muted">No se encontraron documentos.</td></tr>';
+ n('md-rows').innerHTML=rows.length?rows.map(d=>`<tr><td><span class="md-system ${d.system_code==='SGA'?'env':''}">${esc(d.system_code)}</span><br><small>${esc(TYPES[d.system_code]?.[d.document_type]||d.document_type)}</small></td><td><b>${esc(d.document_code)}</b></td><td>${esc(d.document_name)}</td><td>V${String(d.version_number).padStart(2,'0')}</td><td>${readOnly()?'<span class="md-status-label">'+esc(d.status)+'</span>':`<select class="md-status-select md-status-${d.status==='VIGENTE'?'green':d.status==='OBSOLETO'?'red':'yellow'}" data-md-status="${esc(d.id)}" aria-label="Estado de ${esc(d.document_code)}"><option value="PENDIENTE" ${d.status==='PENDIENTE'?'selected':''}>En revisión</option><option value="VIGENTE" ${d.status==='VIGENTE'?'selected':''}>Válido / Vigente</option><option value="OBSOLETO" ${d.status==='OBSOLETO'?'selected':''}>Obsoleto</option></select>`}</td><td>${new Date(d.uploaded_at).toLocaleDateString('es-PE')}</td><td><span class="md-ext">${esc(extension(d.original_filename).toUpperCase())}</span></td><td><div class="md-file-actions"><button type="button" class="btn light small" data-md-open="${esc(d.id)}">Ver</button><button type="button" class="btn light small" data-md-download="${esc(d.id)}">↓ Descargar</button><button type="button" class="btn light small" data-md-print="${esc(d.id)}">▤ Imprimir</button></div></td><td>${readOnly()?'Solo lectura':`<button type="button" class="btn red small" data-md-delete="${esc(d.id)}" aria-label="Eliminar ${esc(d.document_code)} versión ${d.version_number}">Eliminar</button>`}</td></tr>`).join(''):'<tr><td colspan="9" class="muted">No se encontraron documentos.</td></tr>';
 }
 function filteredDocs(){
  const type=document.getElementById('md-type')?.value||'TODOS';
@@ -57,6 +58,7 @@ function preview(){
  e.innerHTML=f.length?f.map(file=>{const p=parse(file.name);return `<div class="${p?'md-valid':'md-invalid'}">${esc(file.name)} — ${p?esc(p.document_code+' · '+p.document_name+' · V'+String(p.version_number).padStart(2,'0')):'Nombre no válido'}</div>`;}).join(''):'Ejemplo: SGSST-ATS-001_Analisis_de_trabajo_seguro_V01.pdf';
 }
 async function upload(){
+ if(readOnly())return msg('No tienes permiso para subir documentos.',true);
  if(busy||!ctx)return;
  const input=document.getElementById('md-file'),files=Array.from(input.files||[]),sel=document.getElementById('md-upload-system').value;
  if(!files.length)return msg('Selecciona uno o varios documentos PDF.',true);
@@ -185,12 +187,12 @@ async function openFile(id,mode='view'){
 document.addEventListener('click',e=>{
  if(!root())return;
  const b=e.target.closest('button');if(!b)return;
- if(b.dataset.mdStatusFilter){statusFilter=b.dataset.mdStatusFilter;draw();}if(b.id==='md-upload')upload();
+ if(b.dataset.mdStatusFilter){statusFilter=b.dataset.mdStatusFilter;draw();}if(b.id==='md-upload'&&!readOnly())upload();
  if(b.id==='md-refresh')refresh();
- if(b.dataset.mdExport)exportMaster(b.dataset.mdExport);if(b.dataset.mdOpen)openFile(b.dataset.mdOpen);if(b.dataset.mdDownload)openFile(b.dataset.mdDownload,'download');if(b.dataset.mdPrint)openFile(b.dataset.mdPrint,'print');if(b.dataset.mdDelete)deleteDocument(b.dataset.mdDelete);
+ if(b.dataset.mdExport)exportMaster(b.dataset.mdExport);if(b.dataset.mdOpen)openFile(b.dataset.mdOpen);if(b.dataset.mdDownload)openFile(b.dataset.mdDownload,'download');if(b.dataset.mdPrint)openFile(b.dataset.mdPrint,'print');if(b.dataset.mdDelete&&!readOnly())deleteDocument(b.dataset.mdDelete);
  if(b.dataset.mdFolder){const [s]=b.dataset.mdFolder.split(':');system=s;document.getElementById('md-system').value=s;folders();document.getElementById('md-type').value=b.dataset.mdFolder;draw();}
 });
-document.addEventListener('change',e=>{if(!root())return;if(e.target.id==='md-file')preview();if(e.target.id==='md-system'){system=e.target.value;draw();}if(e.target.id==='md-type')draw();if(e.target.id==='md-status-filter'){statusFilter=e.target.value;draw();}if(e.target.dataset.mdStatus)setStatus(e.target.dataset.mdStatus,e.target.value);});
+document.addEventListener('change',e=>{if(!root())return;if(e.target.id==='md-file')preview();if(e.target.id==='md-system'){system=e.target.value;draw();}if(e.target.id==='md-type')draw();if(e.target.id==='md-status-filter'){statusFilter=e.target.value;draw();}if(e.target.dataset.mdStatus&&!readOnly())setStatus(e.target.dataset.mdStatus,e.target.value);});
 document.addEventListener('input',e=>{if(!root())return;if(e.target.id==='md-search'){query=e.target.value;draw();}});
 window.ssomaMasterDocuments={page,parse,TYPES};
 })();
