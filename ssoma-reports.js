@@ -21,12 +21,14 @@ async function generate(){
  db.from('ssoma_events').select('event_date,event_type,severity,days_lost,status,description').gte('event_date',start).lte('event_date',end).limit(10000),
  db.from('ssoma_inspections').select('id,inspection_date,contractor_id,inspection_type,area').gte('inspection_date',start).lte('inspection_date',end).limit(10000),
  db.from('ssoma_findings').select('id,inspection_id,status,risk,description,corrective_action,responsible,due_date,created_at').limit(10000),
- db.from('ssoma_event_actions').select('id,status,description,responsible,due_date,created_at').limit(10000)
+ db.from('ssoma_event_actions').select('id,status,description,responsible,due_date,created_at').limit(10000),
+ db.from('ssoma_formacion_actividades').select('id,fecha,tipo,tema,duracion_min,estado').gte('fecha',start).lte('fecha',end).limit(10000),
+ db.from('ssoma_formacion_asistencias').select('actividad_id,presente').limit(10000)
  ];
  let results;try{results=await Promise.all(queries)}catch(e){setStatus('Error de conexión: '+e.message,true);return}
- const errors=results.map((r,i)=>r.error?['HHT','Eventos','Inspecciones','Hallazgos','Acciones'][i]+': '+r.error.message:null).filter(Boolean);
+ const errors=results.map((r,i)=>r.error?['HHT','Eventos','Inspecciones','Hallazgos','Acciones','Formación','Asistencias de formación'][i]+': '+r.error.message:null).filter(Boolean);
  if(errors.length){setStatus('No se emitió el informe porque faltan fuentes: '+errors.join(' | '),true);return}
- const [hours,events,inspections,allFindings,allActions]=results.map(r=>r.data||[]);
+ const [hours,events,inspections,allFindings,allActions,formation,formationAttendance]=results.map(r=>r.data||[]);
  const warnings=[];if(results.some(r=>r.data?.length===10000))warnings.push('Alguna consulta alcanzó 10 000 filas: verificar paginación.');
  const inspectionIds=new Set(inspections.map(x=>x.id));
  const findings=allFindings.filter(x=>inspectionIds.has(x.inspection_id));
@@ -40,6 +42,7 @@ async function generate(){
  const lost=incapacitating.reduce((v,x)=>v+n(x.days_lost),0);
  const IF=hht>0?incapacitating.length*200000/hht:null,IG=hht>0?lost*200000/hht:null,IA=hht>0?IF*IG/200:null;
  if(!hours.length)warnings.push('Sin registros diarios de horas-hombre en el periodo; índices no calculables.');
+ const fmExecuted=formation.filter(x=>['ejecutada','validada'].includes(x.estado));const fmIds=new Set(fmExecuted.map(x=>x.id));const fmPresent=formationAttendance.filter(x=>fmIds.has(x.actividad_id)&&x.presente);const fmHours=fmExecuted.reduce((sum,a)=>sum+formationAttendance.filter(x=>x.actividad_id===a.id&&x.presente).length*n(a.duracion_min)/60,0);
  const kinds={};trainings.forEach(t=>{const key=t.kind||'Sin clasificación';kinds[key]=(kinds[key]||0)+1});
  const subjects=[...new Set(trainings.map(t=>t.topic).filter(Boolean))];
  const open=findings.filter(f=>f.status!=='CERRADO');
@@ -52,7 +55,7 @@ async function generate(){
  '<h3>2. Personal y contratistas</h3>'+table([['Personal activo registrado al consultar',active.length],['Contratistas con personal activo',names.length]])+(names.length?'<p>'+names.map(x=>esc(x.name)+': '+x.count).join(' · ')+'</p>':noRecords('contratistas con personal activo'))+
  '<h3>3. Horas-hombre e indicadores de seguridad</h3>'+table([['HHT registradas en la semana',fmt(hht)],['Días con registro HHT',new Set(hours.map(x=>x.work_date)).size],['Accidentes registrados',accidents.length],['Accidentes incapacitantes o mortales',incapacitating.length],['Días perdidos registrados',lost],['Índice de Frecuencia (IF)',IF===null?'No calculable':IF.toFixed(2)],['Índice de Gravedad (IG)',IG===null?'No calculable':IG.toFixed(2)],['Índice de Accidentabilidad (IA)',IA===null?'No calculable':IA.toFixed(2)]])+
  '<p class="ir-muted">IF e IG por 200 000 HHT; IA = IF × IG / 200. Valores orientativos sujetos a validación de registros y criterios del proyecto.</p>'+
- '<h3>4. Inducciones y capacitaciones</h3>'+table([['Registros de capacitación e inducción',trainings.length],['Duración acumulada registrada (minutos por sesión)',fmt(trainings.reduce((v,t)=>v+n(t.duration_minutes),0))],...Object.entries(kinds)])+(subjects.length?'<p><b>Temas registrados:</b> '+subjects.map(esc).join('; ')+'</p>':noRecords('temas de capacitación'))+
+ '<h3>4. Inducciones y capacitaciones</h3>'+table([['Registros de inducción tradicionales',trainings.length],['Actividades ejecutadas en Formación SSOMA',fmExecuted.length],['Participaciones en Formación SSOMA',fmPresent.length],['Horas-hombre de formación',fmt(fmHours)],['Duración acumulada registrada (minutos por sesión)',fmt(trainings.reduce((v,t)=>v+n(t.duration_minutes),0))],...Object.entries(kinds)])+(subjects.length?'<p><b>Temas registrados (módulo tradicional):</b> '+subjects.map(esc).join('; ')+'</p>':noRecords('temas del módulo tradicional'))+(fmExecuted.length?'<p><b>Formación SSOMA:</b> '+fmExecuted.map(x=>esc(x.tema)).join('; ')+'</p>':noRecords('actividades ejecutadas de Formación SSOMA'))+
  '<h3>5. Inspecciones, hallazgos y acciones</h3>'+table([['Inspecciones realizadas',inspections.length],['Hallazgos asociados a inspecciones del periodo',findings.length],['Hallazgos abiertos',open.length],['Hallazgos críticos abiertos',critical.length],['Acciones de eventos creadas en el periodo',actions.length],['Acciones pendientes',actions.filter(x=>x.status!=='VERIFICADA').length]])+
  (open.length?'<p><b>Hallazgos pendientes:</b></p>'+bullet(open.slice(0,12).map(x=>(x.description||'Sin descripción')+' · Responsable: '+(x.responsible||'Por asignar')+' · Plazo: '+(x.due_date||'Sin fecha'))):noRecords('hallazgos abiertos en inspecciones de la semana'))+
  '<h3>6. Accidentes e incidentes</h3>'+table([['Eventos registrados',events.length],['Accidentes',accidents.length],['Otros eventos',events.length-accidents.length]])+(events.length?bullet(events.slice(0,12).map(x=>x.event_date+' · '+x.event_type+' · '+(x.description||'Sin descripción'))):noRecords('eventos'))+
