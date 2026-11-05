@@ -1,6 +1,6 @@
 /* Formación SSOMA: módulo aislado. No modifica los módulos originales. */
 (()=>{'use strict';
-const ctx=()=>window.sctrContext||{},types={charla:['Charla diaria',10],capacitacion:['Capacitación',60],induccion:['Inducción',120],reinduccion:['Reinducción',30],difusion:['Difusión',30],simulacro:['Simulacro',60],entrenamiento:['Entrenamiento',60]};
+const ctx=()=>window.sctrContext||{},types={charla:['Charla diaria',10],capacitacion:['Capacitación',60],induccion:['Inducción',120],reinduccion:['Reinducción',60],difusion:['Difusión',30],simulacro:['Simulacro',60],entrenamiento:['Entrenamiento',120]};
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let rows=[],people=[],contractors=[],selected=null,tab='programa';
 const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Lima',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
@@ -13,6 +13,7 @@ function paint(){const el=document.getElementById('fm-body');if(!el)return;docum
 let pendingImport=[];
 const norm=v=>String(v??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
 const key=v=>norm(v).replace(/[^a-z0-9]/g,'');
+// Duraciones predeterminadas configuradas para este proyecto; pueden editarse por actividad.
 const headers=['Fecha','Tipo','Tema','Duración (min)','Expositor','Empresa / Contratista','Estado'];
 function csvTemplate(){const example=[['2026-11-05','Charla diaria','Prevención de caídas al mismo nivel',10,'Jefe SSOMA','QOLONO','Programada'],['2026-11-06','Capacitación','Trabajo seguro en altura',60,'Supervisor SSOMA','QOLONO','Programada']];const content='\ufeff'+[headers,...example].map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(';')).join('\r\n');const blob=new Blob([content],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='Plantilla_Cronograma_Formacion_SSOMA.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
 function parseDate(v){if(v instanceof Date&&!isNaN(v))return [v.getFullYear(),String(v.getMonth()+1).padStart(2,'0'),String(v.getDate()).padStart(2,'0')].join('-');if(typeof v==='number'&&window.XLSX?.SSF?.parse_date_code){const x=XLSX.SSF.parse_date_code(v);if(x)return [x.y,String(x.m).padStart(2,'0'),String(x.d).padStart(2,'0')].join('-')}const t=String(v??'').trim();let m;if(m=t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/))return m[1]+'-'+m[2].padStart(2,'0')+'-'+m[3].padStart(2,'0');if(m=t.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/))return m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0');return ''}
