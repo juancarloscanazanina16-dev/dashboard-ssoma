@@ -75,7 +75,7 @@ function attachAutomationNavigation(){if(document.querySelector('[data-page="aut
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(attachAutomationNavigation,0));else setTimeout(attachAutomationNavigation,0);
 
 function attachManagerDashboard(){if(window.__ssomaManagerBoot)return;window.__ssomaManagerBoot=true;const css=document.createElement('link');css.rel='stylesheet';css.href='ssoma-manager-dashboard.css';document.head.appendChild(css);const js=document.createElement('script');js.src='ssoma-manager-dashboard.js';js.onerror=()=>{window.__ssomaManagerBoot=false};document.head.appendChild(js)}
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',attachManagerDashboard);else attachManagerDashboard();
+// Dashboard heredado desactivado: el Dashboard 3.0 se renderiza exclusivamente desde index.html.
 function attachExecutiveTheme(){if(document.querySelector('link[href="ssoma-reference-theme.css"]'))return;const el=document.createElement('link');el.rel='stylesheet';el.href='ssoma-reference-theme.css';document.head.appendChild(el)}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',attachExecutiveTheme);else attachExecutiveTheme();
 function attachGerenciaPlus(){if(window.__ssomaGerenciaPlus)return;window.__ssomaGerenciaPlus=true;const link=document.createElement('link');link.rel='stylesheet';link.href='ssoma-gerencia-plus.css';document.head.appendChild(link);const script=document.createElement('script');script.src='ssoma-gerencia-plus.js';document.head.appendChild(script)}
