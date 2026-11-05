@@ -73,13 +73,11 @@ function render(monthly,year){
  const val=(n,d=2)=>n==null?'—':fmt(n,d);
  const metric=(name,value,detail)=>'<div class="ss-stat"><small>'+name+'</small><strong>'+value+'</strong><span>'+detail+'</span></div>';
  const visible=monthly.filter(m=>m.days.size||m.hht||m.accidents||m.lost);
- const rows=visible.length?visible.map(m=>'<tr><td><b>'+months[m.month-1]+'</b></td><td>'+val(m.average,1)+'</td><td>'+val(m.hht,0)+'</td><td>'+m.accidents+'</td><td>'+val(m.if)+'</td><td>'+val(m.ig)+'</td><td>'+val(m.ia)+'</td></tr>').join(''):'<tr><td colspan="7" class="empty">No existen jornadas ni eventos registrados para este año.</td></tr>';
 
- return '<div class="ss-head"><div><span class="ss-eyebrow">CONTROL ESTADÍSTICO · '+year+'</span><h2>Indicadores de seguridad y accidentabilidad</h2><p>Datos vinculados al registro diario de jornadas y accidentes</p></div><span class="ss-live">● Actualización automática</span></div>'+
- '<div class="ss-grid">'+metric('HHT acumuladas',val(hht,0),'Horas-hombre trabajadas')+metric('Dotación actual',last?val(last[1],0):'—',last?'Último registro: '+last[0].split('-').reverse().join('/'):'Sin jornadas')+metric('Promedio diario',val(avg,1),daily.length+' días registrados')+metric('Accidentes',acc,'Total anual')+'</div>'+
- '<div class="ss-index">'+metric('Índice de frecuencia · IF',val(IF),'Por 200 000 HHT')+metric('Índice de gravedad · IG',val(IG),'Por 200 000 HHT')+metric('Índice de accidentabilidad · IA',val(IA),'IF × IG / 200')+'</div>'+
- '<div class="ss-table-title"><b>Resumen mensual</b><span>Solo meses con registros · '+year+'</span></div><div class="tablewrap"><table class="ss-table"><thead><tr><th>Mes</th><th>Personal prom.</th><th>HHT</th><th>Acc.</th><th>IF</th><th>IG</th><th>IA</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
- '<div class="ss-note"><b>Criterio de cálculo:</b> La dotación diaria suma los trabajadores de las contratistas en una misma fecha; el promedio corresponde a las dotaciones diarias registradas, no a la suma de trabajadores de diferentes días. Las HHT sí se acumulan. Sin HHT se muestran índices no calculables (—). Los accidentes computables dependen de la clasificación de gravedad registrada.</div>';
+ return '<div class="ss-head"><div><h2>Indicadores de seguridad · '+year+'</h2></div><span class="ss-live">● En línea</span></div>'+
+ '<div class="ss-grid">'+metric('HHT',val(hht,0),'')+metric('Personal actual',last?val(last[1],0):'—','')+metric('Promedio diario',val(avg,1),'')+metric('Accidentes',acc,'')+metric('Días perdidos',lost,'')+metric('Computables',comp,'')+'</div>'+
+ '<div class="ss-index">'+metric('IF',val(IF),'')+metric('IG',val(IG),'')+metric('IA',val(IA),'')+'</div>';
+
 }
 window.ssomaLiveHours=async function(db){
  const box=document.getElementById('ssomaLiveHours');if(!box||!db)return;
