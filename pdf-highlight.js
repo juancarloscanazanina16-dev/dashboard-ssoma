@@ -15,7 +15,27 @@ async function highlight(blob,person,onProgress){
  await ensureLib();
  const bytes=new Uint8Array(await blob.arrayBuffer());
  const src=await pdfReader.getDocument({data:bytes.slice()}).promise;
- const output=await window.PDFLib.PDFDocument.load(bytes,{ignoreEncryption:false});
+ let output,rasterized=false;
+ try{output=await window.PDFLib.PDFDocument.load(bytes,{ignoreEncryption:false})}
+ catch(err){
+  if(!/encrypt/i.test(String(err?.message||err)))throw err;
+  // PDF.js ya abrió el archivo sin solicitar contraseña: reconstruir una copia visual
+  // para evitar que pdf-lib intente modificar directamente el PDF cifrado.
+  if(src.numPages>100)throw Error('PDF protegido de más de 100 páginas. Descarga el original y procesa un tramo más pequeño.');
+  onProgress?.('PDF protegido detectado. Preparando una copia visual para resaltado...');
+  output=await window.PDFLib.PDFDocument.create();
+  rasterized=true;
+  for(let p=1;p<=src.numPages;p++){
+   onProgress?.('Preparando página '+p+' de '+src.numPages);
+   const sourcePage=await src.getPage(p),v=sourcePage.getViewport({scale:1.5});
+   const canvas=document.createElement('canvas');canvas.width=Math.ceil(v.width);canvas.height=Math.ceil(v.height);
+   await sourcePage.render({canvasContext:canvas.getContext('2d'),viewport:v}).promise;
+   const png=await output.embedPng(await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(Error('No se pudo procesar página '+p)),'image/png')));
+   const page=output.addPage([v.width/1.5,v.height/1.5]);
+   page.drawImage(png,{x:0,y:0,width:page.getWidth(),height:page.getHeight()});
+   canvas.width=0;canvas.height=0;
+  }
+ }
  if(src.numPages!==output.getPageCount())throw Error('El número de páginas no coincide');
  const candidates=[];
  const fullName=normalize(person.full_name).split(' ').filter(w=>w.length>2);
@@ -69,7 +89,7 @@ async function highlight(blob,person,onProgress){
  const c=candidates[0],page=output.getPage(c.page),size=page.getSize();
  page.drawRectangle({x:Math.max(0,c.x),y:Math.max(0,c.y),width:Math.min(c.width,size.width-Math.max(0,c.x)),height:Math.min(c.height,size.height-Math.max(0,c.y)),color:window.PDFLib.rgb(1,.92,.12),opacity:.38});
  const data=await output.save();
- return {blob:new Blob([data],{type:'application/pdf'}),page:c.page+1,method:c.method};
+ return {blob:new Blob([data],{type:'application/pdf'}),page:c.page+1,method:c.method,rasterized};
  }finally{await src.destroy()}
 }
 window.ssomaHighlightWorkerPdf=highlight;
