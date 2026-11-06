@@ -30,7 +30,8 @@ async function highlight(blob,person,onProgress){
    const sourcePage=await src.getPage(p),v=sourcePage.getViewport({scale:1.5});
    const canvas=document.createElement('canvas');canvas.width=Math.ceil(v.width);canvas.height=Math.ceil(v.height);
    await sourcePage.render({canvasContext:canvas.getContext('2d'),viewport:v}).promise;
-   const png=await output.embedPng(await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(Error('No se pudo procesar página '+p)),'image/png')));
+   const pngBlob=await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(Error('No se pudo procesar página '+p)),'image/png'));
+   const png=await output.embedPng(await pngBlob.arrayBuffer());
    const page=output.addPage([v.width/1.5,v.height/1.5]);
    page.drawImage(png,{x:0,y:0,width:page.getWidth(),height:page.getHeight()});
    canvas.width=0;canvas.height=0;
