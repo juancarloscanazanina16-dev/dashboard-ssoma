@@ -39,6 +39,42 @@ window.attachWorkerDocumentFolders=function(modal,p,ctx){
    const today=new Date().toISOString().slice(0,10);
    company.sort((a,b)=>Number(!!b.coverage_end&&b.coverage_start<=today&&b.coverage_end>=today)-Number(!!a.coverage_end&&a.coverage_start<=today&&a.coverage_end>=today)||(b.coverage_end||'').localeCompare(a.coverage_end||'')||(b.uploaded_at||'').localeCompare(a.uploaded_at||''));
    const files=linked?[...company,...individual]:individual;
+   if(linked&&company.length){
+    const eligible=company.filter(x=>x.coverage_start&&x.coverage_end);
+    if(eligible.length){
+     const policy=eligible[0];
+     let verifyButton=container.querySelector('[data-verify-policy]');
+     if(!verifyButton){
+      verifyButton=document.createElement('button');verifyButton.type='button';verifyButton.className='btn light small';
+      verifyButton.dataset.verifyPolicy='1';
+      container.insertBefore(verifyButton,list);
+     }
+     verifyButton.textContent='🔎 Verificar DNI y completar fechas del SCTR';
+     verifyButton.onclick=async()=>{
+      verifyButton.disabled=true;
+      try{
+       note.textContent='Verificando DNI y nombres en la póliza empresarial...';
+       const signed=await db.storage.from('sst-contractor-files').createSignedUrl(policy.storage_path,120);
+       if(signed.error)throw signed.error;
+       const response=await fetch(signed.data.signedUrl);
+       if(!response.ok)throw Error('No se pudo leer la póliza empresarial');
+       const result=await window.ssomaHighlightWorkerPdf(await response.blob(),p,message=>note.textContent=message);
+       const currentIssue=form.elements.issue_date.value,currentExpiry=form.elements.expiry_date.value;
+       if((currentIssue&&currentIssue!==policy.coverage_start)||(currentExpiry&&currentExpiry!==policy.coverage_end)){
+        if(!window.confirm('Ya existen fechas individuales diferentes. ¿Deseas reemplazarlas con la cobertura verificada del SCTR empresarial?'))return;
+       }
+       form.elements.issue_date.value=policy.coverage_start;
+       form.elements.expiry_date.value=policy.coverage_end;
+       if(policy.insurer)form.elements.provider_name.value=policy.insurer;
+       note.textContent='DNI y nombre coinciden en la página '+result.page+'. Fechas completadas desde la póliza. Pulsa Guardar '+(kind==='SCTR_SALUD'?'SCTR Salud':'SCTR Pensión')+' para registrar los cambios.';
+       toast('Cobertura identificada. Confirma y guarda las fechas.');
+      }catch(err){
+       note.textContent='No se completaron las fechas: '+err.message+'. Revisa el PDF original y la relación de asegurados.';
+       toast('No se pudo verificar el DNI automáticamente',true);
+      }finally{verifyButton.disabled=false}
+     };
+    }
+   }
    container.querySelector('[data-file-count]').textContent=linked?company.length+' póliza(s) empresarial(es) · '+individual.length+' histórico(s)':individual.length+' archivo(s)';
    list.innerHTML=(files.map((r,i)=>'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0;padding:9px;border:1px solid #dbe5ef;border-radius:10px"><span style="flex:1;min-width:150px"><b>'+H(r.original_name)+'</b><br><small>'+H(r.source)+' · '+H(new Date(r.uploaded_at).toLocaleDateString('es-PE'))+'</small></span><button type="button" class="btn light small" data-view-index="'+i+'">PDF original</button>'+(kind.startsWith('SCTR_')?'<button type="button" class="btn green small" data-highlight-index="'+i+'">🖍 Descargar PDF resaltado</button>':'')+(r.bucket===B?'<button type="button" class="btn light small" data-delete-index="'+i+'" style="color:#b42318;border:1px solid #f4b4ae" title="Eliminar únicamente este PDF individual">🗑 Eliminar</button>':'')+'</div>').join('')||'<p class="muted">'+(linked?'No hay pólizas SCTR en Expedientes de esta contratista. Cargue el SCTR desde Expedientes y valide a los trabajadores.':'Aún no existen PDF individuales. Adjunte uno para habilitar las descargas.')+'</p>');
    list.querySelectorAll('[data-delete-index]').forEach(b=>b.onclick=async()=>{
