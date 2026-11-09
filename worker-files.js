@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const B='sst-worker-files',H=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
+const project=()=>{const id=window.sctrContext?.state?.projectId;if(!id)throw Error('Proyecto Lagunas no seleccionado');return id};const B='sst-worker-files',H=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
 const N=x=>String(x||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();
 const iso=v=>{const m=String(v).match(/(\d{1,2})[\/.\-](\d{1,2})[\/.\-](20\d{2})/);if(!m)return '';const d=new Date(Date.UTC(+m[3],+m[2]-1,+m[1]));return d.getUTCDate()===+m[1]&&d.getUTCMonth()===+m[2]-1&&d.getUTCFullYear()===+m[3]?m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0'):''};
 async function pdfText(file,onProgress){return (await window.ssomaReadPdf(file,onProgress)).text}
@@ -27,12 +27,12 @@ window.attachWorkerDocumentFolders=function(modal,p,ctx){
   form.appendChild(container);
   const fileInput=container.querySelector('[data-worker-pdf]'),note=container.querySelector('[data-worker-note]'),button=container.querySelector('[data-worker-upload]'),list=container.querySelector('[data-worker-list]');
   async function refresh(){
-   const res=await db.from('sst_worker_files').select('id,original_name,storage_path,uploaded_at,provider_name,issue_date,expiry_date').eq('person_id',p.id).eq('document_type',kind).order('uploaded_at',{ascending:false}).limit(100);
+   const res=await db.from('sst_worker_files') .select('id,original_name,storage_path,uploaded_at,provider_name,issue_date,expiry_date').eq('project_id',project()).eq('person_id',p.id).eq('document_type',kind).order('uploaded_at',{ascending:false}).limit(100);
    if(res.error){note.textContent='No se pudieron consultar archivos: '+res.error.message;return}
    const individual=(res.data||[]).map(r=>({...r,bucket:B,source:'Individual'}));
    let company=[];
    if(kind.startsWith('SCTR_')&&p.contractor_id){
-    const cr=await db.from('sst_contractor_files').select('id,original_name,storage_path,uploaded_at,coverage_start,coverage_end,insurer').eq('contractor_id',p.contractor_id).eq('category',kind).order('uploaded_at',{ascending:false}).limit(100);
+    const cr=await db.from('sst_contractor_files') .select('id,original_name,storage_path,uploaded_at,coverage_start,coverage_end,insurer').eq('project_id',project()).eq('contractor_id',p.contractor_id).eq('category',kind).order('uploaded_at',{ascending:false}).limit(100);
     if(cr.error){note.textContent='No se pudo consultar el expediente empresarial: '+cr.error.message}
     else company=(cr.data||[]).map(r=>({...r,bucket:'sst-contractor-files',source:'Empresa · por verificar DNI'}));
    }
@@ -85,7 +85,7 @@ window.attachWorkerDocumentFolders=function(modal,p,ctx){
     try{
      const removed=await db.storage.from(B).remove([r.storage_path]);
      if(removed.error)throw removed.error;
-     const deleted=await db.from('sst_worker_files').delete().eq('id',r.id).eq('person_id',p.id).eq('owner_id',session.user.id).select('id');
+     const deleted=await db.from('sst_worker_files').delete().eq('project_id',project()).eq('id',r.id).eq('person_id',p.id).eq('owner_id',session.user.id).select('id');
      if(deleted.error)throw deleted.error;
      if(!deleted.data?.length)throw Error('No se pudo eliminar el registro; actualice y compruebe los permisos');
      toast('PDF individual eliminado correctamente');
@@ -135,7 +135,7 @@ window.attachWorkerDocumentFolders=function(modal,p,ctx){
    const path=[session.user.id,p.id,kind,crypto.randomUUID()+'.pdf'].join('/');
    try{
     const up=await db.storage.from(B).upload(path,file,{contentType:'application/pdf'});check(up.error);
-    const record=await db.from('sst_worker_files').insert({owner_id:session.user.id,person_id:p.id,document_type:kind,storage_path:path,original_name:file.name,provider_name:form.elements.provider_name.value.trim()||null,issue_date:form.elements.issue_date.value||null,expiry_date:form.elements.expiry_date.value||null});
+    const record=await db.from('sst_worker_files').insert({project_id:project(),owner_id:session.user.id,person_id:p.id,document_type:kind,storage_path:path,original_name:file.name,provider_name:form.elements.provider_name.value.trim()||null,issue_date:form.elements.issue_date.value||null,expiry_date:form.elements.expiry_date.value||null});
     if(record.error){await db.storage.from(B).remove([path]);throw record.error}
     toast('PDF guardado en carpeta individual');fileInput.value='';await refresh();
    }catch(e){toast('No se pudo guardar el PDF: '+e.message,true)}finally{button.disabled=false}
