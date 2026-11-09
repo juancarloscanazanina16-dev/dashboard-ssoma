@@ -58,10 +58,10 @@ function fmField(row,names){for(const [k,v] of Object.entries(row))if(names.incl
 async function fmReadScannedPdf(file,progress){
 if(!window.ssomaReadPdf)throw Error('El lector PDF OCR no está disponible. Actualiza la página.');
 const result=await window.ssomaReadPdf(file,progress);
-const lines=result.text.split(/\\r?\\n/).map(x=>x.trim()).filter(Boolean);
+const lines=result.text.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
 const found=[],seen=new Set();
 for(let i=0;i<lines.length;i++){
- const line=lines[i],ids=[...line.matchAll(/(?:^|\\D)(\\d{8})(?!\\d)/g)].map(m=>m[1]);
+ const line=lines[i],ids=[...line.matchAll(/(?:^|\D)(\d{8})(?!\d)/g)].map(m=>m[1]);
  for(const dni of ids){
   if(seen.has(dni))continue;seen.add(dni);
   const person=people.find(p=>String(p.dni||'').trim()===dni);
@@ -76,7 +76,7 @@ const preview=document.getElementById('fm-roster-preview'),confirm=document.getE
 document.getElementById('fm-roster-preview-btn').onclick=async()=>{
 fmRosterPending=[];confirm.disabled=true;
 try{const file=document.getElementById('fm-roster-file').files[0];if(!file)throw Error('Selecciona un documento');let data,sourceNote='';
-if(/\\.pdf$/i.test(file.name)){
+if(/\.pdf$/i.test(file.name)){
  if(file.size>10*1024*1024)throw Error('Máximo 10 MB');
  preview.textContent='Analizando PDF escaneado. El reconocimiento puede tardar varios minutos...';
  const scan=await fmReadScannedPdf(file,msg=>{preview.textContent=msg});
