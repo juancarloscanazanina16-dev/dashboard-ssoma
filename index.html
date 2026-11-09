@@ -527,8 +527,36 @@ function selectField(label,name,options,value='',required=false){return `<label>
 function openModal(kind,id=null,personId=null){editing={kind,id};let item={};if(id)item=({person:state.personnel,contractor:state.contractors,training:state.trainings})[kind].find(x=>x.id===id)||{};let fields='';if(kind==='person'){fields=field('DNI','dni',item.dni,'text',true,'pattern="[0-9]{8,12}" maxlength="12"')+field('Apellidos y nombres','full_name',item.full_name,'text',true)+selectField('Contratista','contractor_id',[['','Sin asignar'],...state.contractors.map(c=>[c.id,c.name])],item.contractor_id)+field('Cargo','job_title',item.job_title,'text',true)+field('Teléfono personal','phone',item.phone,'tel',false,'maxlength="20"')+field('Número en caso de emergencia','emergency_phone',item.emergency_phone,'tel',false,'maxlength="20"')+field('Nombre contacto de emergencia','emergency_name',item.emergency_name)+field('Parentesco','emergency_relation',item.emergency_relation)+selectField('Estado','active',[['true','Activo'],['false','Inactivo']],String(item.active??true))}
 if(kind==='contractor')fields=field('Razón social / nombre de contratista','name',item.name,'text',true);
 if(kind==='training'){const selected=personId||item.person_id||'';fields=selectField('Trabajador','person_id',[['','Seleccione trabajador'],...state.personnel.map(p=>[p.id,`${p.dni} · ${p.full_name}`])],selected,true)+selectField('Tipo','kind',[['Inducción','Inducción'],['Reinducción','Reinducción']],item.kind||((page==='retrainings'||personId)?'Reinducción':'Inducción'),true)+field('Fecha','training_date',item.training_date||isoToday(),'date',true)+field('Tema','topic',item.topic||'Inducción SSOMA General','text',true)+field('Instructor','instructor',item.instructor)+field('Duración (minutos)','duration_minutes',item.duration_minutes||60,'number',true,'min="1"')+field('Vigencia hasta (editable)','validity_until',item.validity_until||'','date')+selectField('Resultado','result',[['Aprobado','Aprobado'],['Pendiente','Pendiente'],['Desaprobado','Desaprobado']],item.result||'Aprobado')+field('Nota de evaluación (0 a 20)','score',item.score??'','number',false,'min="0" max="20" step="0.01"')+field('Nota mínima aprobatoria (configurable)','passing_score',item.passing_score??14,'number',true,'min="0" max="20" step="0.01"')+field('Observaciones','notes',item.notes)}
-$('modalTitle').textContent=(id?'Editar ':'Registrar ')+({person:'personal',contractor:'contratista',training:'capacitación'})[kind];$('formFields').innerHTML=fields;$('modal').classList.remove('hidden')}
-function closeModal(){$('modal').classList.add('hidden');editing=null}
+$('modalTitle').textContent=(id?'Editar ':'Registrar ')+({person:'personal',contractor:'contratista',training:'capacitación'})[kind];$('formFields').innerHTML=fields;$('modal').classList.remove('hidden');ssomaEditTimeline=[];ssomaEditCursor=-1;ssomaTrackEdit()}
+function closeModal(){$('modal').classList.add('hidden');editing=null;ssomaEditTimeline=[];ssomaEditCursor=-1}
+let ssomaEditTimeline=[],ssomaEditCursor=-1,ssomaEditRestoring=false;
+function ssomaEditSnapshot(){
+ const form=$('editorForm');if(!form||$('modal').classList.contains('hidden'))return null;
+ return [...form.elements].filter(el=>el.name&&!['file','password','hidden'].includes(el.type)).map(el=>({name:el.name,type:el.type,value:el.value,checked:el.checked}));
+}
+function ssomaTrackEdit(){
+ if(ssomaEditRestoring)return;
+ const snapshot=ssomaEditSnapshot();if(!snapshot)return;
+ const signature=JSON.stringify(snapshot);
+ if(ssomaEditTimeline[ssomaEditCursor]?.signature===signature)return;
+ ssomaEditTimeline=ssomaEditTimeline.slice(0,ssomaEditCursor+1);
+ ssomaEditTimeline.push({signature,snapshot});
+ if(ssomaEditTimeline.length>100)ssomaEditTimeline.shift();
+ ssomaEditCursor=ssomaEditTimeline.length-1;
+}
+function ssomaRestoreEdit(direction){
+ const index=ssomaEditCursor+direction;if(index<0||index>=ssomaEditTimeline.length)return false;
+ ssomaEditCursor=index;ssomaEditRestoring=true;
+ const form=$('editorForm');
+ for(const item of ssomaEditTimeline[index].snapshot){
+  const el=[...form.elements].find(x=>x.name===item.name);
+  if(!el)continue;
+  if(el.type==='checkbox'||el.type==='radio')el.checked=item.checked;
+  else el.value=item.value;
+  el.dispatchEvent(new Event('change',{bubbles:true}));
+ }
+ ssomaEditRestoring=false;return true;
+}
 async function deleteRecord(kind,id,button){if(!session?.user)return toast('Debes iniciar sesión',true);const names={person:'trabajador',contractor:'contratista',training:'capacitación'},table={person:'personnel',contractor:'contractors',training:'trainings'};if(!table[kind]||!id)return;const record=({person:state.personnel,contractor:state.contractors,training:state.trainings})[kind].find(x=>String(x.id)===String(id));if(!record)return toast('No se encontró el registro',true);if(kind==='person'&&state.trainings.some(t=>t.person_id===id))return toast('No se puede eliminar: el trabajador tiene capacitaciones. Conserva su historial y márcalo como inactivo.',true);if(kind==='contractor'&&state.personnel.some(p=>p.contractor_id===id))return toast('No se puede eliminar: la contratista tiene personal asociado.',true);const label=kind==='person'?record.full_name:kind==='contractor'?record.name:record.kind+' del '+dateShort(record.training_date)+' · '+(person(record.person_id)?.full_name||'Trabajador');if(!window.confirm('¿Eliminar definitivamente '+names[kind]+'?\\n'+label+'\\n\\nEsta acción no se puede deshacer.'))return;button.disabled=true;try{const result=await db.from(table[kind]).delete().eq('id',id).select('id');check(result.error);if(!result.data?.length)throw new Error('No se eliminó el registro. Comprueba los permisos de eliminación en Supabase (RLS).');await load();toast('Registro eliminado correctamente')}catch(err){toast('No se pudo eliminar: '+errorMessage(err),true);button.disabled=false}}
 function normalizeDni(v){return String(v??'').trim().replace(/\\.0$/,'')}
 function duplicatePerson(dni,excludeId){return state.personnel.find(p=>normalizeDni(p.dni)===normalizeDni(dni)&&p.id!==excludeId)}
@@ -545,6 +573,14 @@ document.addEventListener('keydown',e=>{
  if(typing||e.ctrlKey||e.metaKey||e.shiftKey||!e.altKey)return;
  if(e.key==='ArrowLeft'){e.preventDefault();ssomaNavigateHistory(-1)}
  else if(e.key==='ArrowRight'){e.preventDefault();ssomaNavigateHistory(1)}
+});
+$('editorForm').addEventListener('input',ssomaTrackEdit);
+$('editorForm').addEventListener('change',ssomaTrackEdit);
+document.addEventListener('keydown',e=>{
+ if($('modal').classList.contains('hidden')||!(e.ctrlKey||e.metaKey)||e.altKey)return;
+ const key=e.key.toLowerCase(),undo=key==='z'&&!e.shiftKey,redo=key==='y'||key==='z'&&e.shiftKey;
+ if(!undo&&!redo)return;
+ if(ssomaRestoreEdit(undo?-1:1))e.preventDefault();
 });
 $('editorForm').addEventListener('submit',save);$('closeModal').onclick=closeModal;$('cancelModal').onclick=closeModal;
 $('nav').addEventListener('click',e=>{const b=e.target.closest('[data-page]');if(b){if(window.SSOMAAccess.isLogistics()&&b.dataset.page!=='access')return;ssomaGoTo(b.dataset.page)}});
