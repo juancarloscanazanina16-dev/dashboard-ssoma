@@ -1,7 +1,7 @@
 (function(){
 'use strict';
 const CATS=[['SCTR_SALUD','SCTR Salud'],['SCTR_PENSION','SCTR Pensión'],['FICHA_ATENCION_MEDICA','Ficha de atención médica · Gerencia General']];
-const ctx=()=>window.sctrContext;
+const ctx=()=>window.sctrContext;const project=()=>{const id=ctx()?.state?.projectId;if(!id)throw Error('Proyecto Lagunas no seleccionado');return id};
 const safe=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
 let contractorId='',records=[],selected=new Set(),deleting=false;
 
@@ -54,7 +54,7 @@ async function autoFill(e){
 
 function nameOf(id){return ctx().state.contractors.find(c=>c.id===id)?.name||'Subcontratista'}
 async function fetchFiles(){
- const q=await ctx().db.from('sst_contractor_files').select('*').eq('contractor_id',contractorId).order('uploaded_at',{ascending:false}).limit(500);
+ const q=await ctx().db.from('sst_contractor_files').select('*').eq('project_id',project()).eq('contractor_id',contractorId).order('uploaded_at',{ascending:false}).limit(500);
  if(q.error)throw q.error;records=q.data||[];selected.clear();
 }
 function view(){
@@ -87,7 +87,7 @@ async function deleteFiles(ids){
    // Borrar primero el objeto. Si falla, conservar el registro para permitir reintento.
    const removed=await ctx().db.storage.from('sst-contractor-files').remove([file.storage_path]);
    if(removed.error)throw removed.error;
-   const deleted=await ctx().db.from('sst_contractor_files').delete().eq('id',file.id).eq('contractor_id',contractorId).select('id');
+   const deleted=await ctx().db.from('sst_contractor_files').delete().eq('project_id',project()).eq('id',file.id).eq('contractor_id',contractorId).select('id');
    if(deleted.error)throw deleted.error;
    if(!deleted.data?.length)throw Error('No se pudo confirmar la eliminación del registro');
    selected.delete(file.id);
@@ -108,7 +108,7 @@ async function upload(e){
  const path=[ctx().session.user.id,contractorId,cat,crypto.randomUUID()+'.pdf'].join('/');
  try{
  const up=await ctx().db.storage.from('sst-contractor-files').upload(path,file,{contentType:'application/pdf',upsert:false});if(up.error)throw up.error;
- const ins=await ctx().db.from('sst_contractor_files').insert({owner_id:ctx().session.user.id,contractor_id:contractorId,category:cat,storage_path:path,original_name:file.name,insurer:form.elements.insurer?.value?.trim()||null,coverage_start:from,coverage_end:to,manager_signature_verified:cat==='FICHA_ATENCION_MEDICA'&&!!form.elements.signed?.checked});
+ const ins=await ctx().db.from('sst_contractor_files').insert({project_id:project(),owner_id:ctx().session.user.id,contractor_id:contractorId,category:cat,storage_path:path,original_name:file.name,insurer:form.elements.insurer?.value?.trim()||null,coverage_start:from,coverage_end:to,manager_signature_verified:cat==='FICHA_ATENCION_MEDICA'&&!!form.elements.signed?.checked});
  if(ins.error){await ctx().db.storage.from('sst-contractor-files').remove([path]);throw ins.error}
  ctx().toast('PDF guardado en expediente de '+nameOf(contractorId));await reload();
  }catch(err){ctx().toast('No se pudo guardar PDF: '+err.message,true)}finally{btn.disabled=false}
@@ -124,7 +124,7 @@ window.archiveImportedSctr=async function(contractor,kind,file,insurer,from,to){
  if(!file||!contractor)return;
  const path=[ctx().session.user.id,contractor,kind,crypto.randomUUID()+'.pdf'].join('/');
  const up=await ctx().db.storage.from('sst-contractor-files').upload(path,file,{contentType:'application/pdf',upsert:false});if(up.error)throw up.error;
- const ins=await ctx().db.from('sst_contractor_files').insert({owner_id:ctx().session.user.id,contractor_id:contractor,category:kind,storage_path:path,original_name:file.name,insurer,coverage_start:from,coverage_end:to});
+ const ins=await ctx().db.from('sst_contractor_files').insert({project_id:project(),owner_id:ctx().session.user.id,contractor_id:contractor,category:kind,storage_path:path,original_name:file.name,insurer,coverage_start:from,coverage_end:to});
  if(ins.error){await ctx().db.storage.from('sst-contractor-files').remove([path]);throw ins.error}
 };
 })();
