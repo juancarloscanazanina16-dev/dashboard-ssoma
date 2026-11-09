@@ -119,6 +119,7 @@ async function openFile(id){
  if(result.error)return ctx().toast('No se pudo abrir el PDF: '+result.error.message,true);
  window.open(result.data.signedUrl,'_blank','noopener,noreferrer');
 }
+window.ssomaArchiveSelectContractor=function(id){contractorId=String(id||'');records=[];selected.clear()};
 window.contractorArchivePage=function(){queueMicrotask(reload);return '<div id="contractorArchive"><p class="muted">Cargando expedientes...</p></div>'};
 window.archiveImportedSctr=async function(contractor,kind,file,insurer,from,to){
  if(!file||!contractor)return;
