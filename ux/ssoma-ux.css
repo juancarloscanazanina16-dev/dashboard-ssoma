@@ -1,0 +1,19 @@
+/* SSOMA CONTROL 3.0 | Capa visual no destructiva */
+:root{--ux-bg:#f4f7fb;--ux-border:#dce5ef;--ux-accent:#087f83;--ux-ink:#10263d}
+body{background:var(--ux-bg);color:var(--ux-ink)}
+.sidebar{background:linear-gradient(175deg,#091d32,#113b52);border-right:1px solid #21485d}
+.sidebar .brand{padding-bottom:16px}
+.ssoma-ux-search{padding:8px 4px 16px}
+.ssoma-ux-search input{background:#fff;color:#183149;border:1px solid #a9c4d3;border-radius:12px;padding:11px 12px}
+.ssoma-ux-search label{color:#d5e6ef;font-size:12px}
+.ssoma-ux-search-results{display:grid;gap:4px;max-height:250px;overflow:auto;margin-top:7px}
+.ssoma-ux-search-results button{background:#173e55;color:#fff;text-align:left;border-radius:9px;padding:9px 10px;font-size:12px}
+.ssoma-ux-search-results button:hover{background:#116e78}
+.ssoma-ux-search-results .empty-search{color:#c6dbe5;font-size:12px;padding:8px}
+.ssoma-nav-heading{font-weight:750!important;letter-spacing:.1px}
+.ssoma-nav-items button{padding-left:23px!important}
+.top{position:relative;border-radius:18px;box-shadow:0 4px 20px #16344b0c}
+.card{border-radius:18px;box-shadow:0 5px 18px #17344d0b}
+.btn{min-height:38px}
+button:focus-visible{outline:3px solid #38b9b1;outline-offset:2px}
+@media(max-width:750px){.ssoma-ux-search{padding:8px}.ssoma-ux-search-results{max-height:145px}.sidebar{border-right:0}.main{padding:12px}}
