@@ -21,7 +21,7 @@ function init(){
  content.parentElement.insertBefore(home,content);
  let showing=false;
  const visible=(page)=>{const b=[...nav.querySelectorAll('button[data-page]')].find(x=>x.dataset.page===page);return b&&!b.classList.contains('hidden')&&!b.closest('.hidden')?b:null};
- function go(page){const b=visible(page);if(!b)return;hide();b.closest('.ssoma-nav-group')?.querySelector('.ssoma-nav-heading')?.click();b.click()}
+ function go(page){const b=visible(page);if(!b)return;hide();b.click()}
  function el(tag,cls,txt){const n=document.createElement(tag);if(cls)n.className=cls;if(txt)n.textContent=txt;return n}
  function section(title){const d=el('div','ssoma-ux-section');d.append(el('h3','',title));home.append(d)}
  function addButton(parent,label,page,cls,description,symbol){const b=el('button',cls);b.type='button';if(symbol)b.append(el('span','symbol',symbol));b.append(el('strong','',label));if(description)b.append(el('small','',description));b.addEventListener('click',()=>go(page));parent.append(b)}
