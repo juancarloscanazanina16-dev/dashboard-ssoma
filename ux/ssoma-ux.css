@@ -1,19 +1,34 @@
-/* SSOMA CONTROL 3.0 | Capa visual no destructiva */
-:root{--ux-bg:#f4f7fb;--ux-border:#dce5ef;--ux-accent:#087f83;--ux-ink:#10263d}
-body{background:var(--ux-bg);color:var(--ux-ink)}
-.sidebar{background:linear-gradient(175deg,#091d32,#113b52);border-right:1px solid #21485d}
-.sidebar .brand{padding-bottom:16px}
-.ssoma-ux-search{padding:8px 4px 16px}
-.ssoma-ux-search input{background:#fff;color:#183149;border:1px solid #a9c4d3;border-radius:12px;padding:11px 12px}
-.ssoma-ux-search label{color:#d5e6ef;font-size:12px}
-.ssoma-ux-search-results{display:grid;gap:4px;max-height:250px;overflow:auto;margin-top:7px}
-.ssoma-ux-search-results button{background:#173e55;color:#fff;text-align:left;border-radius:9px;padding:9px 10px;font-size:12px}
-.ssoma-ux-search-results button:hover{background:#116e78}
-.ssoma-ux-search-results .empty-search{color:#c6dbe5;font-size:12px;padding:8px}
-.ssoma-nav-heading{font-weight:750!important;letter-spacing:.1px}
-.ssoma-nav-items button{padding-left:23px!important}
-.top{position:relative;border-radius:18px;box-shadow:0 4px 20px #16344b0c}
-.card{border-radius:18px;box-shadow:0 5px 18px #17344d0b}
-.btn{min-height:38px}
-button:focus-visible{outline:3px solid #38b9b1;outline-offset:2px}
-@media(max-width:750px){.ssoma-ux-search{padding:8px}.ssoma-ux-search-results{max-height:145px}.sidebar{border-right:0}.main{padding:12px}}
+/* SSOMA 3.0: executive workspace layer */
+:root{--ux-bg:#f2f6fb;--ux-navy:#102d48;--ux-teal:#008e88;--ux-line:#e2e9f2}
+body{background:var(--ux-bg);font-family:Inter,"Segoe UI",system-ui,sans-serif}
+.sidebar{background:linear-gradient(170deg,#071b30,#103c53);border-right:1px solid #19455c;box-shadow:5px 0 28px #092c4215}
+.sidebar .brand{padding-bottom:15px}
+.ssoma-ux-search{padding:5px 4px 15px}.ssoma-ux-search label{color:#d9e8f2;font-size:12px}
+.ssoma-ux-search input{background:#f7fbff;color:#102d48;border-radius:12px;border:1px solid #8ca9b8}
+.ssoma-ux-search-results{display:grid;gap:4px;max-height:230px;overflow:auto;margin-top:6px}
+.ssoma-ux-search-results button{background:#17465d;color:white;text-align:left;border-radius:9px;padding:10px}
+.ssoma-ux-search-results .empty-search{color:#d9e8f2;font-size:12px;padding:9px}
+.ssoma-nav-heading{font-weight:750!important}.ssoma-nav-items button{padding-left:22px!important}
+.top{background:#fff;border:1px solid var(--ux-line);border-radius:18px;box-shadow:0 5px 24px #14354b0a}
+.card{border-radius:17px;box-shadow:0 5px 20px #17344d0b}
+.ssoma-ux-home-link{width:100%;margin-bottom:10px;padding:13px!important;background:linear-gradient(120deg,#0a8d8b,#0d6b8e)!important;color:white!important;font-weight:800!important;text-align:left;border-radius:12px!important}
+.ssoma-ux-home{padding:3px 0 30px;animation:ssomaEnter .18s ease-out}
+@keyframes ssomaEnter{from{opacity:.5;transform:translateY(6px)}to{opacity:1;transform:none}}
+.ssoma-ux-hero{border-radius:24px;background:linear-gradient(115deg,#0c2945,#0a6570);color:white;padding:30px;display:flex;align-items:center;justify-content:space-between;gap:20px;box-shadow:0 12px 32px #0d405022}
+.ssoma-ux-hero h2{font-size:clamp(24px,3vw,36px);margin:5px 0 10px;color:white;letter-spacing:-.8px}
+.ssoma-ux-hero p{color:#d0e6e9;font-size:14px;max-width:650px;margin:0}
+.ssoma-ux-eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:2px;font-weight:800;color:#88e5d7}
+.ssoma-ux-hero-mark{font-size:60px;opacity:.7}
+.ssoma-ux-section{margin:25px 0 12px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.ssoma-ux-section h3{font-size:18px;color:#14314c;margin:0}
+.ssoma-ux-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.ssoma-ux-tile{background:#fff;border:1px solid var(--ux-line);border-radius:18px;padding:20px;text-align:left;display:flex;flex-direction:column;align-items:flex-start;gap:10px;min-height:155px;transition:transform .15s,box-shadow .15s}
+.ssoma-ux-tile:hover{transform:translateY(-3px);box-shadow:0 12px 25px #17344d18;border-color:#80c8c3}
+.ssoma-ux-tile .symbol{width:44px;height:44px;border-radius:13px;background:#e6f6f4;display:grid;place-items:center;font-size:22px}
+.ssoma-ux-tile strong{font-size:16px;color:#14314c}.ssoma-ux-tile small{font-size:12px;color:#62768a;line-height:1.5}
+.ssoma-ux-quick{display:flex;gap:9px;flex-wrap:wrap}
+.ssoma-ux-quick button{border:1px solid #cbdce8;background:white;color:#173952;border-radius:11px;padding:11px 15px;font-weight:700}
+.ssoma-ux-quick button:hover{background:#e6f6f4}
+.ssoma-ux-note{font-size:12px;color:#62768a;margin-top:17px}
+@media(max-width:1050px){.ssoma-ux-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:750px){.ssoma-ux-grid{grid-template-columns:1fr}.ssoma-ux-hero{padding:23px}.ssoma-ux-hero-mark{display:none}.ssoma-ux-search{padding:8px}.ssoma-ux-tile{min-height:120px}.ssoma-ux-home{padding-bottom:20px}}
